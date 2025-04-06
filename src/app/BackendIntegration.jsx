@@ -517,7 +517,7 @@ PLATFORM = "${formData.platform}"
                               id="api_key" 
                               name="api_key" 
                               placeholder="Your API key" 
-                              value={formData.api_key || "sk_test_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"}
+                              value={formData.api_key || "your-api-key-here"}
                               onChange={handleInputChange}
                               className="flex-1"
                             />
