@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -518,7 +517,7 @@ PLATFORM = "${formData.platform}"
                               id="api_key" 
                               name="api_key" 
                               placeholder="Your API key" 
-                              value={formData.api_key || "sk_live_xxxxxxxxxxxxxxxxxxxxxxxx"}
+                              value={formData.api_key || "YOUR_API_KEY_HERE"}
                               onChange={handleInputChange}
                               className="flex-1"
                             />
