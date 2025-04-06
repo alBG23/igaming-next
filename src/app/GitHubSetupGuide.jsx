@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -133,7 +132,7 @@ export default function GitHubSetupGuide() {
                         </Button>
                       </div>
                       <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-md text-red-800 text-sm">
-                        <strong>Security Note:</strong> Store this token securely. It grants access to your repositories and should never be shared publicly.
+                        <strong>Security Note:</strong> Store this token securely. It grants access to your repositories and should never be shared publicly. Use environment variables to store your token.
                       </div>
                     </div>
                   </div>
