@@ -30,7 +30,7 @@ export default function SchemaDiscovery() {
             { name: "email", type: "varchar(255)", description: "User email address", nullable: false },
             { name: "full_name", type: "varchar(255)", description: "Full name", nullable: true },
             { name: "nickname", type: "varchar(100)", description: "User nickname for display", nullable: true },
-            { name: "password_hash", type: "varchar(255)", description: "Hashed password (use environment variables)", nullable: false },
+            { name: "password_hash", type: "varchar(255)", description: "Securely hashed password (stored in environment variables)", nullable: false },
             { name: "country", type: "varchar(2)", description: "Country code (ISO 3166-1)", nullable: true },
             { name: "city", type: "varchar(100)", description: "City", nullable: true },
             { name: "address", type: "varchar(255)", description: "Street address", nullable: true },

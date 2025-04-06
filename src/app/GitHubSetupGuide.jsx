@@ -26,7 +26,7 @@ export default function GitHubSetupGuide() {
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-800">Security Warning</AlertTitle>
           <AlertDescription className="text-amber-700">
-            Never share your GitHub personal access tokens in chat interfaces or unsecured locations. Tokens provide access to your repositories and should be kept secure.
+            Never share your GitHub personal access tokens in chat interfaces or unsecured locations. Tokens provide access to your repositories and should be kept secure. Always use environment variables for storing tokens.
           </AlertDescription>
         </Alert>
 

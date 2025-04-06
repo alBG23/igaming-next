@@ -24,7 +24,7 @@ export default function EnvironmentVariablesGuide() {
           <AlertDescription className="text-red-700">
             Base44 is a browser-based application platform. As such, it does not support backend execution or backend environment variables 
             for storing sensitive credentials. Any code running in the browser can be inspected by users, making it 
-            insecure for direct database connections or storing API keys.
+            insecure for direct database connections or storing API keys. Always use a secure backend service for handling sensitive data.
           </AlertDescription>
         </Alert>
         
