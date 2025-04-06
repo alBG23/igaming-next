@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -150,7 +149,7 @@ app.use(cors({ origin: 'https://your-base44-app.com' }));
 const pool = new Pool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  password: 'YOUR_DB_PASSWORD',
   database: process.env.DB_NAME,
   ssl: true
 });

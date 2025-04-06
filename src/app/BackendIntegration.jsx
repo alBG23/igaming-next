@@ -187,8 +187,8 @@ conn = psycopg2.connect(
     host="${formData.database_host}",
     port=${formData.database_port},
     database="${formData.database_name}",
-    user="your_database_user",
-    password="your_database_password"
+    user="YOUR_DB_USER",
+    password="YOUR_DB_PASSWORD"
 )
 
 def get_cohort_data():
