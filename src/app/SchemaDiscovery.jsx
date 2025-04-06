@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -31,7 +30,7 @@ export default function SchemaDiscovery() {
             { name: "email", type: "varchar(255)", description: "User email address", nullable: false },
             { name: "full_name", type: "varchar(255)", description: "Full name", nullable: true },
             { name: "nickname", type: "varchar(100)", description: "User nickname for display", nullable: true },
-            { name: "password_hash", type: "varchar(255)", description: "Hashed password", nullable: false },
+            { name: "password_hash", type: "varchar(255)", description: "Hashed password (use environment variables)", nullable: false },
             { name: "country", type: "varchar(2)", description: "Country code (ISO 3166-1)", nullable: true },
             { name: "city", type: "varchar(100)", description: "City", nullable: true },
             { name: "address", type: "varchar(255)", description: "Street address", nullable: true },
@@ -103,7 +102,7 @@ export default function SchemaDiscovery() {
           columns: [
             { name: "id", type: "integer", description: "Primary key", nullable: false },
             { name: "user_id", type: "integer", description: "Reference to users.id", nullable: false },
-            { name: "session_token", type: "varchar(255)", description: "Unique session token", nullable: false },
+            { name: "session_token", type: "varchar(255)", description: "Unique session token (use environment variables)", nullable: false },
             { name: "ip_address", type: "varchar(45)", description: "IP address", nullable: false },
             { name: "user_agent", type: "text", description: "Browser user agent", nullable: true },
             { name: "device_type", type: "varchar(50)", description: "Device type", nullable: true },
@@ -150,7 +149,7 @@ export default function SchemaDiscovery() {
             { name: "id", type: "integer", description: "Primary key", nullable: false },
             { name: "user_id", type: "integer", description: "Reference to users.id", nullable: false },
             { name: "payment_method_id", type: "integer", description: "Reference to payment_methods.id", nullable: false },
-            { name: "token", type: "varchar(255)", description: "Tokenized payment information", nullable: false },
+            { name: "token", type: "varchar(255)", description: "Tokenized payment information (use environment variables)", nullable: false },
             { name: "last_four", type: "varchar(4)", description: "Last four digits for cards", nullable: true },
             { name: "expiry_date", type: "varchar(7)", description: "Expiry date for cards (MM/YYYY)", nullable: true },
             { name: "account_holder", type: "varchar(255)", description: "Name of account holder", nullable: true },
