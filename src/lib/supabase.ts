@@ -424,13 +424,51 @@ export async function getAffiliateReports({
   }
 }
 
+interface BonusIssue {
+  id: string
+  created_at: string
+  account_id: string
+  title: string
+  status: string
+  amount_cents: number
+  amount_wager_cents: number
+  amount_locked_cents: number
+  valid_until: string
+  activated_at: string | null
+  finished_at: string | null
+  strategy: string
+}
+
+interface FreespinIssue {
+  id: string
+  created_at: string
+  account_id: string
+  title: string
+  status: string
+  freespins_total: number
+  freespins_performed: number
+  win_amount_cents: number
+  valid_until: string
+  provider: string
+  games: string[]
+}
+
+interface GetBonusDataParams {
+  startDate: string
+  endDate: string
+  page?: number
+  pageSize?: number
+}
+
+interface GetBonusDataResponse {
+  data: Array<BonusIssue | FreespinIssue>
+  count: number
+}
+
 // Get Bonus Data
-export async function getBonusData({
-  startDate,
-  endDate,
-  page = 1,
-  pageSize = 10
-}) {
+export async function getBonusData(params: GetBonusDataParams): Promise<GetBonusDataResponse> {
+  const { startDate, endDate, page = 1, pageSize = 10 } = params
+  
   try {
     // Get bonus issues
     const { data: bonusData, error: bonusError } = await supabase
@@ -449,6 +487,8 @@ export async function getBonusData({
         finished_at,
         strategy
       `)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
       .order('created_at', { ascending: false });
 
     if (bonusError) throw bonusError;
@@ -469,6 +509,8 @@ export async function getBonusData({
         provider,
         games
       `)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
       .order('created_at', { ascending: false });
 
     if (freespinError) throw freespinError;

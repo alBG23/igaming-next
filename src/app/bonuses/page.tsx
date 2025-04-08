@@ -10,9 +10,9 @@ import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
 import { getBonusData } from '@/lib/supabase'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { DateRange } from 'react-day-picker'
 
-interface BonusIssue {
-  type: 'bonus'
+interface BaseBonus {
   id: string
   created_at: string
   account_id: string
@@ -24,22 +24,15 @@ interface BonusIssue {
   valid_until: string
   activated_at: string | null
   finished_at: string | null
+}
+
+interface BonusIssue extends BaseBonus {
+  type: 'bonus'
   strategy: string
 }
 
-interface FreespinIssue {
+interface FreespinIssue extends BaseBonus {
   type: 'freespin'
-  id: string
-  created_at: string
-  account_id: string
-  title: string
-  status: string
-  amount_cents: number
-  amount_wager_cents: number
-  amount_locked_cents: number
-  valid_until: string
-  activated_at: string | null
-  finished_at: string | null
   game_id: string
   spins_count: number
   spins_used: number
@@ -56,9 +49,16 @@ interface BonusMetrics {
   expiredCount: number
 }
 
+interface GetBonusDataParams {
+  startDate: string
+  endDate: string
+  page?: number
+  pageSize?: number
+}
+
 export default function BonusesPage() {
   const [activeTab, setActiveTab] = useState('overview')
-  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>()
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -79,27 +79,77 @@ export default function BonusesPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const data = await getBonusData(dateRange)
-      setBonusData(data)
       
-      // Calculate metrics
-      const totalIssued = data.length
-      const totalAmount = data.reduce((sum, bonus) => sum + bonus.amount_cents, 0)
-      const totalWagered = data.reduce((sum, bonus) => sum + bonus.amount_wager_cents, 0)
-      const completed = data.filter(bonus => bonus.status === 'completed').length
-      const active = data.filter(bonus => bonus.status === 'active').length
-      const expired = data.filter(bonus => bonus.status === 'expired').length
+      // Skip if dateRange is not set
+      if (!dateRange?.from || !dateRange?.to) {
+        setLoading(false)
+        return
+      }
       
-      setMetrics({
-        totalIssued,
-        totalAmount,
-        totalWagered,
-        completionRate: totalIssued > 0 ? (completed / totalIssued) * 100 : 0,
-        activeCount: active,
-        expiredCount: expired
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      const params = {
+        startDate: dateRange.from.toISOString(),
+        endDate: dateRange.to.toISOString(),
+        page: 1,
+        pageSize: 100
+      }
+      
+      const response = await getBonusData(params)
+      
+      if (response?.data) {
+        const transformedData: BonusData[] = response.data.map(item => {
+          const baseData = {
+            id: item.id,
+            created_at: item.created_at,
+            account_id: item.account_id,
+            title: item.title,
+            status: item.status,
+            amount_cents: Number(item.amount_cents),
+            amount_wager_cents: Number(item.amount_wager_cents),
+            amount_locked_cents: Number(item.amount_locked_cents),
+            valid_until: item.valid_until,
+            activated_at: item.activated_at,
+            finished_at: item.finished_at
+          }
+
+          if ('game_id' in item) {
+            return {
+              ...baseData,
+              type: 'freespin' as const,
+              game_id: String(item.game_id),
+              spins_count: Number(item.spins_count),
+              spins_used: Number(item.spins_used)
+            } as FreespinIssue
+          } else {
+            return {
+              ...baseData,
+              type: 'bonus' as const,
+              strategy: String(item.strategy)
+            } as BonusIssue
+          }
+        })
+
+        setBonusData(transformedData)
+
+        // Calculate metrics
+        const totalIssued = transformedData.length
+        const totalAmount = transformedData.reduce((sum, bonus) => sum + bonus.amount_cents, 0)
+        const totalWagered = transformedData.reduce((sum, bonus) => sum + bonus.amount_wager_cents, 0)
+        const completed = transformedData.filter(bonus => bonus.status === 'completed').length
+        const active = transformedData.filter(bonus => bonus.status === 'active').length
+        const expired = transformedData.filter(bonus => bonus.status === 'expired').length
+
+        setMetrics({
+          totalIssued,
+          totalAmount,
+          totalWagered,
+          completionRate: totalIssued > 0 ? (completed / totalIssued) * 100 : 0,
+          activeCount: active,
+          expiredCount: expired
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching bonus data:', error)
+      setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
