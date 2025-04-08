@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { DatePickerWithRange } from '@/components/ui/date-range-picker'
 import { DataTable } from '@/components/ui/data-table'
-import { Badge } from '@/components/ui/badge'
 import { getAffiliateReports } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
 
@@ -102,10 +101,9 @@ export default function AffiliatesPage() {
       if (data) {
         setAffiliateData(data)
 
-        // Calculate metrics
         const uniquePartners = new Set(data.map(item => item.partner_id)).size
         const totalIncome = data.reduce((sum, item) => sum + item.partner_income, 0)
-        
+
         let totalVisits = 0
         let totalClicks = 0
         let totalRegistrations = 0
@@ -165,57 +163,56 @@ export default function AffiliatesPage() {
       accessorKey: 'partner_id',
       header: 'Partner ID',
     },
-  ]
-      {
+    {
       accessorKey: 'traffic_metrics',
       header: 'Traffic Metrics',
-      cell: ({ row }) => {
-        const traffic = row.original.traffic
-        if (!traffic) return '-'
+      cell: ({ row }: any) => {
+        const traffic = row.original.traffic;
+        if (!traffic) return '-';
         return (
           <div className="space-y-1">
             <div className="text-sm">Visits: {traffic.visits}</div>
             <div className="text-sm">Clicks: {traffic.clicks}</div>
             <div className="text-sm">CR: {traffic.cr.toFixed(2)}%</div>
           </div>
-        )
-      }
+        );
+      },
     },
     {
       accessorKey: 'conversion_metrics',
       header: 'Conversion Metrics',
-      cell: ({ row }) => {
-        const traffic = row.original.traffic
-        if (!traffic) return '-'
+      cell: ({ row }: any) => {
+        const traffic = row.original.traffic;
+        if (!traffic) return '-';
         return (
           <div className="space-y-1">
             <div className="text-sm">Registrations: {traffic.registrations_count}</div>
             <div className="text-sm">Deposits: {traffic.deposits_count}</div>
             <div className="text-sm">FTDs: {traffic.ftd_count}</div>
           </div>
-        )
-      }
+        );
+      },
     },
     {
       accessorKey: 'revenue_metrics',
       header: 'Revenue Metrics',
-      cell: ({ row }) => {
-        const api = row.original.api
-        if (!api) return '-'
+      cell: ({ row }: any) => {
+        const api = row.original.api;
+        if (!api) return '-';
         return (
           <div className="space-y-1">
             <div className="text-sm">GGR: {formatCurrency(api.ggr)}</div>
             <div className="text-sm">NGR: {formatCurrency(api.ngr)}</div>
           </div>
-        )
-      }
+        );
+      },
     },
     {
       accessorKey: 'partner_income',
       header: 'Partner Income',
-      cell: ({ row }) => formatCurrency(row.getValue('partner_income'))
-    }
-  ]
+      cell: ({ row }: any) => formatCurrency(row.getValue('partner_income')),
+    },
+  ];
 
   if (loading) {
     return (
@@ -242,43 +239,39 @@ export default function AffiliatesPage() {
           <TabsContent value="overview" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader>
                   <CardTitle className="text-sm font-medium">Total Partners</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{metrics.totalPartners}</div>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader>
                   <CardTitle className="text-sm font-medium">Total Partner Income</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatCurrency(metrics.totalIncome)}</div>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader>
                   <CardTitle className="text-sm font-medium">Total GGR</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatCurrency(metrics.totalGGR)}</div>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader>
                   <CardTitle className="text-sm font-medium">Total NGR</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatCurrency(metrics.totalNGR)}</div>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader>
                   <CardTitle className="text-sm font-medium">Traffic Overview</CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -294,9 +287,8 @@ export default function AffiliatesPage() {
                   </div>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader>
                   <CardTitle className="text-sm font-medium">Conversion Overview</CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -316,9 +308,8 @@ export default function AffiliatesPage() {
                   </div>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader>
                   <CardTitle className="text-sm font-medium">Conversion Rates</CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -362,4 +353,4 @@ export default function AffiliatesPage() {
       </div>
     </div>
   )
-} 
+}
