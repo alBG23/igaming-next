@@ -160,12 +160,13 @@ export default function AffiliatesPage() {
       accessorKey: 'date',
       header: 'Date',
       cell: ({ row }: any) => new Date(row.getValue('date')).toLocaleDateString(),
-
-    {
-      accessorKey: 'partner_id',
-      header: 'Partner ID'
     },
     {
+      accessorKey: 'partner_id',
+      header: 'Partner ID',
+    },
+  ]
+      {
       accessorKey: 'traffic_metrics',
       header: 'Traffic Metrics',
       cell: ({ row }) => {
