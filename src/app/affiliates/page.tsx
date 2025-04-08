@@ -10,6 +10,11 @@ import { DataTable } from '@/components/ui/data-table'
 import { getAffiliateReports } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
 
+type DateRange = {
+  from?: Date
+  to?: Date
+}
+
 interface AffiliateData {
   id: string
   date: string
@@ -64,7 +69,7 @@ interface AffiliateMetrics {
 
 export default function AffiliatesPage() {
   const [activeTab, setActiveTab] = useState('overview')
-  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>()
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -201,8 +206,8 @@ export default function AffiliatesPage() {
         if (!api) return '-';
         return (
           <div className="space-y-1">
-            <div className="text-sm">GGR: {formatCurrency(api.ggr)}</div>
-            <div className="text-sm">NGR: {formatCurrency(api.ngr)}</div>
+            <div className="text-sm">GGR: {formatCurrency(api.ggr, 'EUR')}</div>
+            <div className="text-sm">NGR: {formatCurrency(api.ngr, 'EUR')}</div>
           </div>
         );
       },
@@ -210,7 +215,7 @@ export default function AffiliatesPage() {
     {
       accessorKey: 'partner_income',
       header: 'Partner Income',
-      cell: ({ row }: any) => formatCurrency(row.getValue('partner_income')),
+      cell: ({ row }: any) => formatCurrency(row.getValue('partner_income'), 'EUR'),
     },
   ];
 
@@ -251,7 +256,7 @@ export default function AffiliatesPage() {
                   <CardTitle className="text-sm font-medium">Total Partner Income</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(metrics.totalIncome)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(metrics.totalIncome, 'EUR')}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -259,7 +264,7 @@ export default function AffiliatesPage() {
                   <CardTitle className="text-sm font-medium">Total GGR</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(metrics.totalGGR)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(metrics.totalGGR, 'EUR')}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -267,7 +272,7 @@ export default function AffiliatesPage() {
                   <CardTitle className="text-sm font-medium">Total NGR</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(metrics.totalNGR)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(metrics.totalNGR, 'EUR')}</div>
                 </CardContent>
               </Card>
               <Card>

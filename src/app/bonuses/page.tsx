@@ -1,4 +1,4 @@
-"use client"
+fix this one and give full script also - "use client"
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
