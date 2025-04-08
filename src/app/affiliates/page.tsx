@@ -159,7 +159,7 @@ export default function AffiliatesPage() {
     {
       accessorKey: 'date',
       header: 'Date',
-      cell: ({ row }: any) => new Date(row.getValue('date')).toLocaleDateString()
+      cell: ({ row }: any) => new Date(row.getValue('date')).toLocaleDateString(),
 
     {
       accessorKey: 'partner_id',
