@@ -1,417 +1,437 @@
-'use client'
+"use client"
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { MetricsData } from '@/api/entities';
-import { ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
-import { CreditCard, Calendar, Search, Filter, Download, TrendingUp, TrendingDown, DollarSign, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from "react"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { DollarSign, TrendingUp, CreditCard, AlertCircle } from 'lucide-react'
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { supabase, testSupabaseConnection } from "@/lib/supabase"
 
 interface PaymentMetrics {
-  id: string;
-  date: string;
-  totalTransactions: number;
-  successRate: number;
-  totalVolume: number;
-  avgTransactionValue: number;
+  total_revenue: number
+  total_payouts: number
+  net_revenue: number
+  success_rate: number
 }
 
 interface Transaction {
-  id: string;
-  player: string;
-  method: string;
-  amount: number;
-  status: 'success' | 'failed';
-  date: string;
-  reason?: string;
+  id: string
+  type: 'deposit' | 'withdrawal'
+  amount: number
+  status: 'completed' | 'pending' | 'failed'
+  date: string
+  method: string
+  player_id: string
+  player_name: string
 }
 
+interface Report {
+  id: string
+  title: string
+  period: string
+  total_transactions: number
+  total_amount: number
+  status: 'ready' | 'processing' | 'failed'
+  created_at: string
+}
+
+const fallbackMetrics: PaymentMetrics = {
+  total_revenue: 50000,
+  total_payouts: 20000,
+  net_revenue: 30000,
+  success_rate: 98.5
+}
+
+const fallbackChartData = [
+  { month: 'Jan', revenue: 40000, payouts: 12000, net: 28000 },
+  { month: 'Feb', revenue: 30000, payouts: 9000, net: 21000 },
+  { month: 'Mar', revenue: 20000, payouts: 6000, net: 14000 },
+  { month: 'Apr', revenue: 27800, payouts: 8340, net: 19460 },
+  { month: 'May', revenue: 18900, payouts: 5670, net: 13230 },
+  { month: 'Jun', revenue: 23900, payouts: 7170, net: 16730 }
+]
+
+const fallbackTransactions: Transaction[] = [
+  {
+    id: '1',
+    type: 'deposit',
+    amount: 1000,
+    status: 'completed',
+    date: '2024-03-15',
+    method: 'Credit Card',
+    player_id: 'P001',
+    player_name: 'John Doe'
+  },
+  {
+    id: '2',
+    type: 'withdrawal',
+    amount: 500,
+    status: 'pending',
+    date: '2024-03-14',
+    method: 'Bank Transfer',
+    player_id: 'P002',
+    player_name: 'Jane Smith'
+  },
+  {
+    id: '3',
+    type: 'deposit',
+    amount: 2000,
+    status: 'completed',
+    date: '2024-03-13',
+    method: 'Crypto',
+    player_id: 'P003',
+    player_name: 'Mike Johnson'
+  }
+]
+
+const fallbackReports: Report[] = [
+  {
+    id: '1',
+    title: 'Monthly Revenue Report',
+    period: 'March 2024',
+    total_transactions: 150,
+    total_amount: 50000,
+    status: 'ready',
+    created_at: '2024-03-01'
+  },
+  {
+    id: '2',
+    title: 'Weekly Transaction Summary',
+    period: 'Week 11, 2024',
+    total_transactions: 45,
+    total_amount: 15000,
+    status: 'processing',
+    created_at: '2024-03-11'
+  }
+]
+
 export default function PaymentsPage() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [period, setPeriod] = useState('30d');
-  const [metrics, setMetrics] = useState<PaymentMetrics[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    country: 'all',
-    paymentMethod: 'all',
-    status: 'all'
-  });
+  const [activeTab, setActiveTab] = useState('overview')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [metrics, setMetrics] = useState<PaymentMetrics>(fallbackMetrics)
+  const [chartData, setChartData] = useState(fallbackChartData)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [transactions, setTransactions] = useState<Transaction[]>(fallbackTransactions)
+  const [reports, setReports] = useState<Report[]>(fallbackReports)
+  const [selectedReport, setSelectedReport] = useState<string | null>(null)
 
   useEffect(() => {
-    loadData();
-  }, [period]);
+    fetchData()
+  }, [])
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const fetchData = async () => {
     try {
-      const metricsData = await MetricsData.list('-date');
-      setMetrics(metricsData);
-    } catch (error) {
-      console.error('Error loading payment data:', error);
+      setLoading(true)
+      const { connected, error: connectionError } = await testSupabaseConnection()
+      
+      if (!connected) {
+        throw new Error(connectionError || 'Unable to connect to database')
+      }
+
+      const { data: metricsData, error: metricsError } = await supabase
+        .from('payment_metrics')
+        .select('*')
+        .single()
+
+      if (metricsError) throw metricsError
+
+      const { data: chartData, error: chartError } = await supabase
+        .from('payment_trend')
+        .select('*')
+        .order('month', { ascending: true })
+
+      if (chartError) throw chartError
+
+      setMetrics(metricsData)
+      setChartData(chartData)
+      setError(null)
+    } catch (err) {
+      console.error('Error:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred')
+      setMetrics(fallbackMetrics)
+      setChartData(fallbackChartData)
+    } finally {
+      setLoading(false)
     }
-    setIsLoading(false);
-  };
+  }
 
-  // Prepare data for visualizations
-  const acceptanceRatioData = [
-    { name: 'Visa', ftd: 86, std: 92 },
-    { name: 'Mastercard', ftd: 82, std: 90 },
-    { name: 'PayPal', ftd: 94, std: 96 },
-    { name: 'Skrill', ftd: 91, std: 93 },
-    { name: 'Neteller', ftd: 88, std: 92 }
-  ];
+  const fetchTransactions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(50)
 
-  const declineReasons = [
-    { name: 'Card Blocked', value: 38 },
-    { name: '3D Secure Failure', value: 27 },
-    { name: 'Fraud Suspicion', value: 16 },
-    { name: 'Insufficient Funds', value: 14 },
-    { name: 'Technical Error', value: 5 }
-  ];
+      if (error) throw error
+      setTransactions(data || fallbackTransactions)
+    } catch (err) {
+      console.error('Error fetching transactions:', err)
+      setTransactions(fallbackTransactions)
+    }
+  }
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+  const fetchReports = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payment_reports')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-  const pieData = declineReasons.map(item => ({
-    name: item.name,
-    value: item.value
-  }));
+      if (error) throw error
+      setReports(data || fallbackReports)
+    } catch (err) {
+      console.error('Error fetching reports:', err)
+      setReports(fallbackReports)
+    }
+  }
 
-  // Transaction data
-  const transactions: Transaction[] = [
-    { id: 'TX789012', player: 'Player123', method: 'Visa', amount: 200, status: 'success', date: '2024-01-20' },
-    { id: 'TX789013', player: 'Player456', method: 'PayPal', amount: 150, status: 'success', date: '2024-01-20' },
-    { id: 'TX789014', player: 'Player789', method: 'Mastercard', amount: 75, status: 'failed', date: '2024-01-19', reason: 'Card Blocked' },
-    { id: 'TX789015', player: 'Player321', method: 'Skrill', amount: 300, status: 'success', date: '2024-01-19' },
-    { id: 'TX789016', player: 'Player654', method: 'Mastercard', amount: 125, status: 'failed', date: '2024-01-18', reason: '3D Secure Failure' }
-  ];
+  useEffect(() => {
+    if (activeTab === 'transactions') {
+      fetchTransactions()
+    } else if (activeTab === 'reports') {
+      fetchReports()
+    }
+  }, [activeTab])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      </div>
+    )
+  }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Payment Transactions</h1>
-            <p className="text-gray-500">Monitor payment performance and transaction status</p>
-          </div>
-          <div className="flex gap-3">
-            <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Select period" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="24h">Last 24 Hours</SelectItem>
-                <SelectItem value="7d">Last 7 Days</SelectItem>
-                <SelectItem value="30d">Last 30 Days</SelectItem>
-                <SelectItem value="90d">Last Quarter</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Payments</h1>
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Search..."
+            className="w-[200px]"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {error ? (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <p>Failed to connect to the database. Please check your connection and try again.</p>
           </div>
         </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="acceptance">Acceptance Ratio</TabsTrigger>
-            <TabsTrigger value="declines">Decline Analysis</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview">
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      ) : (
+        <>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
+            </TabsList>
+            <TabsContent value="overview" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Total Transactions</p>
-                        <div className="flex items-end gap-2 mt-2">
-                          <p className="text-2xl font-bold">3,254</p>
-                          <span className="text-green-600 text-sm">+12.5%</span>
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-full bg-blue-100">
-                        <CreditCard className="h-5 w-5 text-blue-600" />
-                      </div>
-                    </div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">${metrics.total_revenue.toLocaleString()}</div>
+                    <p className="text-xs text-muted-foreground">+12.5% from last month</p>
                   </CardContent>
                 </Card>
-                
                 <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Success Rate</p>
-                        <div className="flex items-end gap-2 mt-2">
-                          <p className="text-2xl font-bold">88.3%</p>
-                          <span className="text-red-600 text-sm">-2.1%</span>
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-full bg-green-100">
-                        <TrendingUp className="h-5 w-5 text-green-600" />
-                      </div>
-                    </div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Payouts</CardTitle>
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">${metrics.total_payouts.toLocaleString()}</div>
+                    <p className="text-xs text-muted-foreground">+8.3% from last month</p>
                   </CardContent>
                 </Card>
-                
                 <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Total Volume</p>
-                        <div className="flex items-end gap-2 mt-2">
-                          <p className="text-2xl font-bold">$186,420</p>
-                          <span className="text-green-600 text-sm">+8.4%</span>
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-full bg-violet-100">
-                        <DollarSign className="h-5 w-5 text-violet-600" />
-                      </div>
-                    </div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Net Revenue</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">${metrics.net_revenue.toLocaleString()}</div>
+                    <p className="text-xs text-muted-foreground">+15.2% from last month</p>
                   </CardContent>
                 </Card>
-                
                 <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Avg. Transaction Value</p>
-                        <div className="flex items-end gap-2 mt-2">
-                          <p className="text-2xl font-bold">$57.29</p>
-                          <span className="text-green-600 text-sm">+3.2%</span>
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-full bg-orange-100">
-                        <TrendingUp className="h-5 w-5 text-orange-600" />
-                      </div>
-                    </div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{metrics.success_rate}%</div>
+                    <p className="text-xs text-muted-foreground">+0.5% from last month</p>
                   </CardContent>
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Transaction Volume Trend</CardTitle>
+                    <CardTitle>Revenue Overview</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                          data={[
-                            { date: 'Jan 15', deposits: 450, withdrawals: 180 },
-                            { date: 'Jan 16', deposits: 520, withdrawals: 230 },
-                            { date: 'Jan 17', deposits: 490, withdrawals: 210 },
-                            { date: 'Jan 18', deposits: 580, withdrawals: 250 },
-                            { date: 'Jan 19', deposits: 610, withdrawals: 270 },
-                            { date: 'Jan 20', deposits: 590, withdrawals: 240 }
-                          ]}
-                          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
+                        <AreaChart data={chartData}>
+                          <defs>
+                            <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="month" />
                           <YAxis />
-                          <Tooltip />
-                          <Legend />
-                          <Line type="monotone" dataKey="deposits" stroke="#4F46E5" strokeWidth={2} activeDot={{ r: 8 }} />
-                          <Line type="monotone" dataKey="withdrawals" stroke="#FB7185" strokeWidth={2} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Transaction Success by Method</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={[
-                            { name: 'Visa', success: 88, failed: 12 },
-                            { name: 'MasterCard', success: 85, failed: 15 },
-                            { name: 'PayPal', success: 94, failed: 6 },
-                            { name: 'Skrill', success: 92, failed: 8 },
-                            { name: 'Neteller', success: 90, failed: 10 }
-                          ]}
-                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                        >
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
                           <Tooltip />
-                          <Legend />
-                          <Bar dataKey="success" stackId="a" fill="#10B981" />
-                          <Bar dataKey="failed" stackId="a" fill="#F43F5E" />
-                        </BarChart>
+                          <Area
+                            type="monotone"
+                            dataKey="revenue"
+                            stroke="#8884d8"
+                            fillOpacity={1}
+                            fill="url(#colorRevenue)"
+                          />
+                        </AreaChart>
                       </ResponsiveContainer>
                     </div>
                   </CardContent>
                 </Card>
               </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="acceptance">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle>Deposit Acceptance Ratio</CardTitle>
-                    <CardDescription>First-time deposit (FTD) vs. subsequent deposit (STD) acceptance rates</CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Filter
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                  </div>
+            </TabsContent>
+            <TabsContent value="transactions" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Search transactions..."
+                    className="w-[300px]"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={acceptanceRatioData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="ftd" fill="#4F46E5" name="First-time Deposit" />
-                      <Bar dataKey="std" fill="#10B981" name="Subsequent Deposit" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="declines">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle>Payment Decline Analysis</CardTitle>
-                    <CardDescription>Breakdown of payment decline reasons</CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Filter
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={150}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              </div>
+              
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="px-4 py-3 text-left text-sm font-medium">ID</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">Player</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">Type</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">Amount</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">Method</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transactions.map((transaction) => (
+                          <tr key={transaction.id} className="border-b hover:bg-muted/50">
+                            <td className="px-4 py-3 text-sm">{transaction.id}</td>
+                            <td className="px-4 py-3 text-sm">
+                              <div className="font-medium">{transaction.player_name}</div>
+                              <div className="text-muted-foreground">{transaction.player_id}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                transaction.type === 'deposit' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm font-medium">
+                              {transaction.type === 'deposit' ? '+' : '-'}${transaction.amount.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-sm">{transaction.method}</td>
+                            <td className="px-4 py-3 text-sm">
+                              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                transaction.status === 'completed' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : transaction.status === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm">{new Date(transaction.date).toLocaleDateString()}</td>
+                          </tr>
                         ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="transactions">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle>Recent Transactions</CardTitle>
-                    <CardDescription>Detailed view of payment transactions</CardDescription>
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="flex gap-2">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-                      <Input
-                        placeholder="Search transactions..."
-                        className="pl-8 w-[200px]"
-                      />
-                    </div>
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Filter
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Transaction ID</TableHead>
-                      <TableHead>Player</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Reason</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.map((transaction) => (
-                      <TableRow key={transaction.id}>
-                        <TableCell className="font-medium">{transaction.id}</TableCell>
-                        <TableCell>{transaction.player}</TableCell>
-                        <TableCell>{transaction.method}</TableCell>
-                        <TableCell>${transaction.amount}</TableCell>
-                        <TableCell>
-                          <Badge variant={transaction.status === 'success' ? 'success' : 'destructive'}>
-                            {transaction.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{transaction.date}</TableCell>
-                        <TableCell>{transaction.reason || '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="reports" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                {reports.map((report) => (
+                  <Card 
+                    key={report.id} 
+                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                      selectedReport === report.id ? 'border-primary' : ''
+                    }`}
+                    onClick={() => setSelectedReport(report.id)}
+                  >
+                    <CardHeader>
+                      <CardTitle className="text-lg">{report.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Period</span>
+                          <span className="text-sm font-medium">{report.period}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Transactions</span>
+                          <span className="text-sm font-medium">{report.total_transactions}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Total Amount</span>
+                          <span className="text-sm font-medium">${report.total_amount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Status</span>
+                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                            report.status === 'ready' 
+                              ? 'bg-green-100 text-green-800' 
+                              : report.status === 'processing'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Created</span>
+                          <span className="text-sm font-medium">
+                            {new Date(report.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </div>
-  );
+  )
 } 

@@ -13,6 +13,9 @@ import {
   Settings,
   LogOut,
   Menu,
+  Gamepad,
+  Gift,
+  Users2,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -21,6 +24,9 @@ const navigationItems = [
   { icon: Users, label: "Players", href: "/players" },
   { icon: BarChart2, label: "Acquisition", href: "/acquisition" },
   { icon: LineChart, label: "Cohort Analysis", href: "/cohort-analysis" },
+  { icon: Gamepad, label: "Casino Games", href: "/casino-games" },
+  { icon: Gift, label: "Bonuses", href: "/bonuses" },
+  { icon: Users2, label: "Affiliates", href: "/affiliates" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ]
 

@@ -11,7 +11,7 @@ import { CohortData } from '@/api/entities';
 import { Loader2, Download, Filter, Calendar, DollarSign, Users, TrendingUp, Percent } from 'lucide-react';
 
 // Basic sample data for cohort analysis
-const sampleCohortData = [
+const sampleCohortData: CohortData[] = [
   // January 2023 Cohort
   {
     ftd_month: "2023-01", cohort_size: 320, affiliate_id: "AFF001", affiliate_name: "TopCasinoGuide",
@@ -64,19 +64,45 @@ const sampleCohortData = [
   }
 ];
 
+interface FilterOptions {
+  stags: string[];
+  affiliateIds: string[];
+  brands: string[];
+}
+
+interface FilterState {
+  stag: string;
+  affiliateId: string;
+  brand: string;
+}
+
+interface CohortTables {
+  [key: string]: {
+    [key: number]: number | null;
+  };
+}
+
+interface ProcessedData {
+  cohorts: string[];
+  monthNumbers: number[];
+  depositsTable: CohortTables;
+  ngrTable: CohortTables;
+  depositorsTable: CohortTables;
+}
+
 export default function CohortAnalysisPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('deposits');
-  const [cohortData, setCohortData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
-  const [filter, setFilter] = useState({
+  const [cohortData, setCohortData] = useState<CohortData[]>([]);
+  const [filteredData, setFilteredData] = useState<CohortData[]>([]);
+  const [filter, setFilter] = useState<FilterState>({
     stag: 'all',
     affiliateId: 'all',
     brand: 'all'
   });
 
   // Filter options
-  const [filterOptions, setFilterOptions] = useState({
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     stags: [],
     affiliateIds: [],
     brands: []
@@ -89,9 +115,9 @@ export default function CohortAnalysisPage() {
       setFilteredData(sampleCohortData);
       
       // Extract filter options
-      const stags = [...new Set(sampleCohortData.map(d => d.stag))];
-      const affiliateIds = [...new Set(sampleCohortData.map(d => d.affiliate_id))];
-      const brands = [...new Set(sampleCohortData.map(d => d.brand))];
+      const stags = Array.from(new Set(sampleCohortData.map(d => d.stag)));
+      const affiliateIds = Array.from(new Set(sampleCohortData.map(d => d.affiliate_id)));
+      const brands = Array.from(new Set(sampleCohortData.map(d => d.brand)));
       
       setFilterOptions({
         stags,
@@ -123,7 +149,7 @@ export default function CohortAnalysisPage() {
   };
 
   // Handle filter changes
-  const handleFilterChange = (filterKey, value) => {
+  const handleFilterChange = (filterKey: keyof FilterState, value: string) => {
     setFilter(prev => {
       const newFilter = { ...prev, [filterKey]: value };
       
@@ -151,7 +177,7 @@ export default function CohortAnalysisPage() {
   };
 
   // Format currency values
-  const formatCurrency = (value) => {
+  const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -161,17 +187,17 @@ export default function CohortAnalysisPage() {
   };
 
   // Process data to display in cohort tables
-  const getProcessedCohortData = () => {
+  const getProcessedCohortData = (): ProcessedData => {
     // Get unique cohorts (FTD months) and sort chronologically
-    const cohorts = [...new Set(filteredData.map(d => d.ftd_month))].sort();
+    const cohorts = Array.from(new Set(filteredData.map(d => d.ftd_month))).sort();
     
     // Get all month numbers and sort
-    const monthNumbers = [...new Set(filteredData.map(d => d.month_number))].sort((a, b) => a - b);
+    const monthNumbers = Array.from(new Set(filteredData.map(d => d.month_number))).sort((a, b) => a - b);
     
     // Create tables for each metric
-    const depositsTable = {};
-    const ngrTable = {};
-    const depositorsTable = {};
+    const depositsTable: CohortTables = {};
+    const ngrTable: CohortTables = {};
+    const depositorsTable: CohortTables = {};
     
     cohorts.forEach(cohort => {
       depositsTable[cohort] = {};
@@ -181,9 +207,11 @@ export default function CohortAnalysisPage() {
       monthNumbers.forEach(month => {
         const record = filteredData.find(d => d.ftd_month === cohort && d.month_number === month);
         
-        depositsTable[cohort][month] = record ? record.deposits_amount : null;
-        ngrTable[cohort][month] = record ? record.ngr : null;
-        depositorsTable[cohort][month] = record ? record.unique_depositors : null;
+        if (depositsTable[cohort] && ngrTable[cohort] && depositorsTable[cohort]) {
+          depositsTable[cohort][month] = record ? record.deposits_amount : null;
+          ngrTable[cohort][month] = record ? record.ngr : null;
+          depositorsTable[cohort][month] = record ? record.unique_depositors : null;
+        }
       });
     });
     
@@ -200,7 +228,12 @@ export default function CohortAnalysisPage() {
   const processedData = getProcessedCohortData();
 
   // Render cohort table
-  const renderCohortTable = (title, description, dataTable, formatter = formatCurrency) => {
+  const renderCohortTable = (
+    title: string,
+    description: string,
+    dataTable: CohortTables,
+    formatter: (value: number) => string = formatCurrency
+  ) => {
     return (
       <Card className="mb-6">
         <CardHeader>

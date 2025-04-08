@@ -6,29 +6,56 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Users, TrendingUp, DollarSign, Activity, Search, Filter } from 'lucide-react'
+import { Users, TrendingUp, DollarSign, Activity, Search, Filter, BarChart2 } from 'lucide-react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 
 // Sample data for the charts
-const acquisitionData = [
-  { name: 'Jan', newPlayers: 4000, cost: 2400, conversion: 65 },
-  { name: 'Feb', newPlayers: 3000, cost: 1398, conversion: 70 },
-  { name: 'Mar', newPlayers: 2000, cost: 9800, conversion: 75 },
-  { name: 'Apr', newPlayers: 2780, cost: 3908, conversion: 68 },
-  { name: 'May', newPlayers: 1890, cost: 4800, conversion: 72 },
-  { name: 'Jun', newPlayers: 2390, cost: 3800, conversion: 78 },
+const performanceData = [
+  { name: 'Jan', revenue: 40000, profit: 24000, margin: 60 },
+  { name: 'Feb', revenue: 30000, profit: 18000, margin: 60 },
+  { name: 'Mar', revenue: 20000, profit: 12000, margin: 60 },
+  { name: 'Apr', revenue: 27800, profit: 16680, margin: 60 },
+  { name: 'May', revenue: 18900, profit: 11340, margin: 60 },
+  { name: 'Jun', revenue: 23900, profit: 14340, margin: 60 },
 ]
 
-// Sample acquisition channels data
-const channels = [
-  { id: 1, name: 'Google Ads', newPlayers: 1200, cost: 5000, conversion: 75, cpa: 4.17 },
-  { id: 2, name: 'Facebook', newPlayers: 800, cost: 3200, conversion: 80, cpa: 4.00 },
-  { id: 3, name: 'Instagram', newPlayers: 600, cost: 2400, conversion: 70, cpa: 4.00 },
-  { id: 4, name: 'Twitter', newPlayers: 400, cost: 1600, conversion: 65, cpa: 4.00 },
-  { id: 5, name: 'Referral', newPlayers: 300, cost: 0, conversion: 90, cpa: 0.00 },
+// Sample performance metrics data
+const metrics = [
+  { 
+    id: 1, 
+    name: 'Revenue Growth', 
+    value: 15.5,
+    change: 2.3,
+    trend: 'up',
+    target: 12.0
+  },
+  { 
+    id: 2, 
+    name: 'Player Retention', 
+    value: 78.2,
+    change: -1.2,
+    trend: 'down',
+    target: 80.0
+  },
+  { 
+    id: 3, 
+    name: 'Average Bet Size', 
+    value: 25.50,
+    change: 3.1,
+    trend: 'up',
+    target: 24.00
+  },
+  { 
+    id: 4, 
+    name: 'Conversion Rate', 
+    value: 3.2,
+    change: 0.4,
+    trend: 'up',
+    target: 3.0
+  },
 ]
 
-export default function AcquisitionPage() {
+export default function PerformancePage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -36,61 +63,61 @@ export default function AcquisitionPage() {
     <div className="flex-1 space-y-4 p-4 md:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl font-bold tracking-tight">Acquisition</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Performance</h2>
         </div>
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="channels">Channels</TabsTrigger>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+            <TabsTrigger value="metrics">Metrics</TabsTrigger>
+            <TabsTrigger value="trends">Trends</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">New Players</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">5,290</div>
-                  <p className="text-xs text-muted-foreground">
-                    +15% from last month
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Acquisition Cost</CardTitle>
+                  <CardTitle className="text-sm font-medium">Revenue</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">$12,200</div>
+                  <div className="text-2xl font-bold">$160,600</div>
                   <p className="text-xs text-muted-foreground">
-                    -5% from last month
+                    +15.5% from last month
                   </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+                  <CardTitle className="text-sm font-medium">Profit</CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">72%</div>
+                  <div className="text-2xl font-bold">$96,360</div>
                   <p className="text-xs text-muted-foreground">
-                    +3% from last month
+                    +15.5% from last month
                   </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Cost per Acquisition</CardTitle>
+                  <CardTitle className="text-sm font-medium">Margin</CardTitle>
                   <Activity className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">$2.31</div>
+                  <div className="text-2xl font-bold">60%</div>
                   <p className="text-xs text-muted-foreground">
-                    -8% from last month
+                    +0% from last month
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active Players</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">12,450</div>
+                  <p className="text-xs text-muted-foreground">
+                    +8.2% from last month
                   </p>
                 </CardContent>
               </Card>
@@ -98,12 +125,12 @@ export default function AcquisitionPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
               <Card className="col-span-4">
                 <CardHeader>
-                  <CardTitle>Acquisition Trend</CardTitle>
+                  <CardTitle>Performance Trend</CardTitle>
                 </CardHeader>
                 <CardContent className="pl-2">
                   <ResponsiveContainer width="100%" height={350}>
                     <LineChart
-                      data={acquisitionData}
+                      data={performanceData}
                       margin={{
                         top: 10,
                         right: 30,
@@ -117,28 +144,31 @@ export default function AcquisitionPage() {
                       <YAxis yAxisId="right" orientation="right" />
                       <Tooltip />
                       <Legend />
-                      <Line yAxisId="left" type="monotone" dataKey="newPlayers" stroke="#8884d8" />
-                      <Line yAxisId="right" type="monotone" dataKey="conversion" stroke="#82ca9d" />
+                      <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#8884d8" />
+                      <Line yAxisId="left" type="monotone" dataKey="profit" stroke="#82ca9d" />
+                      <Line yAxisId="right" type="monotone" dataKey="margin" stroke="#ffc658" />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
               <Card className="col-span-3">
                 <CardHeader>
-                  <CardTitle>Top Performing Channels</CardTitle>
+                  <CardTitle>Key Metrics</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-8">
-                    {channels.slice(0, 3).map((channel) => (
-                      <div key={channel.id} className="flex items-center">
+                    {metrics.map((metric) => (
+                      <div key={metric.id} className="flex items-center">
                         <div className="ml-4 space-y-1">
-                          <p className="text-sm font-medium leading-none">{channel.name}</p>
+                          <p className="text-sm font-medium leading-none">{metric.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {channel.newPlayers} new players
+                            Target: {metric.target}%
                           </p>
                         </div>
                         <div className="ml-auto font-medium">
-                          {channel.conversion}% conv.
+                          <span className={metric.trend === 'up' ? 'text-green-600' : 'text-red-600'}>
+                            {metric.value}% ({metric.change > 0 ? '+' : ''}{metric.change}%)
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -147,12 +177,12 @@ export default function AcquisitionPage() {
               </Card>
             </div>
           </TabsContent>
-          <TabsContent value="channels" className="space-y-4">
+          <TabsContent value="metrics" className="space-y-4">
             <div className="flex items-center space-x-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search channels..."
+                  placeholder="Search metrics..."
                   className="pl-8"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -168,21 +198,31 @@ export default function AcquisitionPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Channel</TableHead>
-                      <TableHead>New Players</TableHead>
-                      <TableHead>Cost</TableHead>
-                      <TableHead>Conversion</TableHead>
-                      <TableHead>CPA</TableHead>
+                      <TableHead>Metric</TableHead>
+                      <TableHead>Current Value</TableHead>
+                      <TableHead>Change</TableHead>
+                      <TableHead>Target</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {channels.map((channel) => (
-                      <TableRow key={channel.id}>
-                        <TableCell>{channel.name}</TableCell>
-                        <TableCell>{channel.newPlayers}</TableCell>
-                        <TableCell>${channel.cost}</TableCell>
-                        <TableCell>{channel.conversion}%</TableCell>
-                        <TableCell>${channel.cpa.toFixed(2)}</TableCell>
+                    {metrics.map((metric) => (
+                      <TableRow key={metric.id}>
+                        <TableCell>{metric.name}</TableCell>
+                        <TableCell>{metric.value}%</TableCell>
+                        <TableCell>
+                          <span className={metric.trend === 'up' ? 'text-green-600' : 'text-red-600'}>
+                            {metric.change > 0 ? '+' : ''}{metric.change}%
+                          </span>
+                        </TableCell>
+                        <TableCell>{metric.target}%</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            metric.value >= metric.target ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {metric.value >= metric.target ? 'On Target' : 'Below Target'}
+                          </span>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
