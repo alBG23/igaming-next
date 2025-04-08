@@ -12,11 +12,6 @@ import { getAffiliateReports } from '@/lib/supabase'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { DateRange } from 'react-day-picker'
 
-type DateRange = {
-  from?: Date
-  to?: Date
-}
-
 interface AffiliateData {
   id: string
   date: string
