@@ -105,7 +105,10 @@ export default function BonusesPage() {
       })
 
       if (data) {
-        const transformedData = data.map((item: RawBonusData) => {
+        // First, ensure we're working with RawBonusData[]
+        const rawData: RawBonusData[] = data as unknown as RawBonusData[]
+        
+        const transformedData = rawData.map((item) => {
           const baseData = {
             id: item.id,
             created_at: item.created_at,
@@ -135,7 +138,7 @@ export default function BonusesPage() {
               strategy: String(item.strategy)
             } as BonusIssue
           }
-        }) as BonusData[]
+        })
 
         setBonusData(transformedData)
 
