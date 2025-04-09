@@ -102,15 +102,15 @@ export default function BonusesPage() {
         return
       }
 
-      const response = await getBonusData({
+      const { data } = await getBonusData({
         startDate: dateRange.from.toISOString(),
         endDate: dateRange.to.toISOString(),
         page: 1,
         pageSize: 100
-      }) as GetBonusDataResponse
+      })
 
-      if (response.data) {
-        const transformedData = response.data.map(item => {
+      if (data) {
+        const transformedData = data.map(item => {
           const baseData = {
             id: item.id,
             created_at: item.created_at,
@@ -125,7 +125,7 @@ export default function BonusesPage() {
             finished_at: item.finished_at
           }
 
-          if (item.game_id !== undefined) {
+          if ('game_id' in item) {
             return {
               ...baseData,
               type: 'freespin' as const,
