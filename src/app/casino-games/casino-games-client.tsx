@@ -10,7 +10,7 @@ import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
 import { getCasinoGamesData, getGamesCatalog } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
-import { ColumnDef } from '@/components/ui/data-table'
+import { ColumnDef } from '@tanstack/react-table'
 
 interface GameSession {
   id: string
