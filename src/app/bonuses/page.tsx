@@ -10,8 +10,9 @@ import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
 import { getBonusData } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
+import { DateRange } from 'react-day-picker'
 
-interface BonusIssue {
+interface BaseBonus {
   id: string
   created_at: string
   account_id: string
@@ -23,23 +24,18 @@ interface BonusIssue {
   valid_until: string
   activated_at: string | null
   finished_at: string | null
-  strategy: string
-  type: 'bonus'
 }
 
-interface FreespinIssue {
-  id: string
-  created_at: string
-  account_id: string
-  title: string
-  status: string
-  freespins_total: number
-  freespins_performed: number
-  win_amount_cents: number
-  valid_until: string
-  provider: string
-  games: string[]
+interface BonusIssue extends BaseBonus {
+  type: 'bonus'
+  strategy: string
+}
+
+interface FreespinIssue extends BaseBonus {
   type: 'freespin'
+  game_id: string
+  spins_count: number
+  spins_used: number
 }
 
 type BonusData = BonusIssue | FreespinIssue
@@ -55,7 +51,7 @@ interface BonusMetrics {
 
 export default function BonusesPage() {
   const [activeTab, setActiveTab] = useState('overview')
-  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>()
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -77,31 +73,69 @@ export default function BonusesPage() {
     try {
       setLoading(true)
 
+      // Skip if dateRange is not set
+      if (!dateRange?.from || !dateRange?.to) {
+        setLoading(false)
+        return
+      }
+
       const { data } = await getBonusData({
-        startDate: dateRange?.from?.toISOString(),
-        endDate: dateRange?.to?.toISOString(),
+        startDate: dateRange.from.toISOString(),
+        endDate: dateRange.to.toISOString(),
         page: 1,
         pageSize: 100
       })
 
       if (data) {
-        setBonusData(data)
+        const transformedData: BonusData[] = data.map(item => {
+          const baseData = {
+            id: item.id,
+            created_at: item.created_at,
+            account_id: item.account_id,
+            title: item.title,
+            status: item.status,
+            amount_cents: Number(item.amount_cents),
+            amount_wager_cents: Number(item.amount_wager_cents),
+            amount_locked_cents: Number(item.amount_locked_cents),
+            valid_until: item.valid_until,
+            activated_at: item.activated_at,
+            finished_at: item.finished_at
+          }
 
-        const bonuses = data.filter((item): item is BonusIssue => item.type === 'bonus')
-        const freespins = data.filter((item): item is FreespinIssue => item.type === 'freespin')
+          if ('game_id' in item) {
+            return {
+              ...baseData,
+              type: 'freespin' as const,
+              game_id: String(item.game_id),
+              spins_count: Number(item.spins_count),
+              spins_used: Number(item.spins_used)
+            } as FreespinIssue
+          } else {
+            return {
+              ...baseData,
+              type: 'bonus' as const,
+              strategy: String(item.strategy)
+            } as BonusIssue
+          }
+        })
+
+        setBonusData(transformedData)
+
+        const bonuses = transformedData.filter((item): item is BonusIssue => item.type === 'bonus')
+        const freespins = transformedData.filter((item): item is FreespinIssue => item.type === 'freespin')
 
         const totalBonusAmount = bonuses.reduce((sum, bonus) => sum + bonus.amount_cents, 0)
-        const totalFreespinsWinAmount = freespins.reduce((sum, spin) => sum + spin.win_amount_cents, 0)
+        const totalFreespinsWinAmount = freespins.reduce((sum, spin) => sum + spin.amount_cents, 0)
         const activeWageringAmount = bonuses.reduce((sum, bonus) =>
           bonus.status === 'active' ? sum + bonus.amount_wager_cents : sum, 0)
 
-        const completedBonuses = data.filter(item => item.status === 'completed').length
-        const completionRate = (completedBonuses / data.length) * 100
+        const completedBonuses = transformedData.filter(item => item.status === 'completed').length
+        const completionRate = (completedBonuses / transformedData.length) * 100
 
         setMetrics({
           totalBonusesIssued: bonuses.length,
           totalBonusAmount,
-          totalFreespinsIssued: freespins.reduce((sum, spin) => sum + spin.freespins_total, 0),
+          totalFreespinsIssued: freespins.reduce((sum, spin) => sum + spin.spins_count, 0),
           totalFreespinsWinAmount,
           activeWageringAmount,
           completionRate
@@ -161,7 +195,7 @@ export default function BonusesPage() {
         if (item.type === 'bonus') {
           return formatCurrency(item.amount_cents)
         } else {
-          return `${item.freespins_total} spins`
+          return `${item.spins_count} spins`
         }
       }
     },
@@ -173,7 +207,7 @@ export default function BonusesPage() {
         if (item.type === 'bonus') {
           return formatCurrency(item.amount_wager_cents)
         } else {
-          return formatCurrency(item.win_amount_cents)
+          return formatCurrency(item.amount_cents)
         }
       }
     },
