@@ -237,20 +237,21 @@ export async function getCasinoGamesData({
 }) {
   try {
     const offset = (page - 1) * pageSize
-    const query = supabase
+    let query = supabase
       .from('game_sessions')
-      .select('*', { count: 'exact' })
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (startDate) {
-      query.gte('created_at', startDate)
+      query = query.gte('created_at', startDate)
     }
     if (endDate) {
-      query.lte('created_at', endDate)
+      query = query.lte('created_at', endDate)
     }
 
     const { data, error, count } = await query
       .range(offset, offset + pageSize - 1)
+      .select('*')
 
     if (error) throw error
 
