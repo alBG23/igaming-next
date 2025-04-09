@@ -236,41 +236,40 @@ export async function getCasinoGamesData({
   pageSize = 10
 }) {
   try {
-    const offset = (page - 1) * pageSize;
-
-    let query = supabase
-      .from('casino_games_view')
-      .select(`
-        id,
-        created_at,
-        finished_at,
-        account_id,
-        game_id,
-        bets_sum,
-        payoff_sum,
-        balance_before,
-        balance_after,
-        jackpot_win_cents
-      `)
-      .order('created_at', { ascending: false });
+    const offset = (page - 1) * pageSize
+    const query = supabase
+      .from('game_sessions')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
 
     if (startDate) {
-      query = query.gte('created_at', startDate);
+      query.gte('created_at', startDate)
     }
     if (endDate) {
-      query = query.lte('created_at', endDate);
+      query.lte('created_at', endDate)
     }
 
     const { data, error, count } = await query
       .range(offset, offset + pageSize - 1)
-      .select('*', { count: 'exact' });
 
-    if (error) throw error;
+    if (error) throw error
 
-    return { data, count };
+    return {
+      data: data?.map(session => ({
+        ...session,
+        bet_amount_cents: Number(session.bet_amount_cents),
+        win_amount_cents: Number(session.win_amount_cents)
+      })) || [],
+      count: count || 0,
+      error: null
+    }
   } catch (error) {
-    console.error('Error fetching casino games data:', error);
-    throw error;
+    console.error('Error fetching casino games data:', error)
+    return {
+      data: [],
+      count: 0,
+      error: error instanceof Error ? error : new Error('Unknown error occurred')
+    }
   }
 }
 
