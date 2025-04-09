@@ -195,7 +195,7 @@ export async function getCasinoGamesData({
 }: GetCasinoGamesDataParams) {
   try {
     const offset = (page - 1) * pageSize
-    const { data, error } = await supabase
+    const query = supabase
       .from('game_sessions')
       .select('*')
       .order('created_at', { ascending: false })
@@ -203,14 +203,14 @@ export async function getCasinoGamesData({
       .lte('created_at', endDate)
       .range(offset, offset + pageSize - 1)
 
-    if (error) throw error
-
-    // Get total count using a separate query
+    const { data, error } = await query
     const { count } = await supabase
       .from('game_sessions')
-      .select('id')
+      .select('*', { count: 'exact', head: true })
       .gte('created_at', startDate)
       .lte('created_at', endDate)
+
+    if (error) throw error
 
     return {
       data: data?.map(session => ({
