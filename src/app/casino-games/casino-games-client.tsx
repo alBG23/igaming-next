@@ -165,7 +165,7 @@ export function CasinoGamesClient() {
     }
   ]
 
-  const gameColumns = [
+  const gameColumns: ColumnDef<Game>[] = [
     {
       accessorKey: 'title',
       header: 'Game Title'
@@ -181,12 +181,12 @@ export function CasinoGamesClient() {
     {
       accessorKey: 'payout',
       header: 'Payout %',
-      cell: ({ row }) => `${row.getValue('payout')}%`
+      cell: ({ row }: { row: any }) => `${row.getValue('payout')}%`
     },
     {
       accessorKey: 'features',
       header: 'Features',
-      cell: ({ row }) => (
+      cell: ({ row }: { row: any }) => (
         <div className="flex gap-2">
           {row.original.jackpot && <Badge>Jackpot</Badge>}
           {row.original.freespins && <Badge>Free Spins</Badge>}
