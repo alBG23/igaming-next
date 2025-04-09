@@ -49,6 +49,24 @@ interface BonusMetrics {
   completionRate: number
 }
 
+interface RawBonusData {
+  id: string
+  created_at: string
+  account_id: string
+  title: string
+  status: string
+  amount_cents: number | string
+  amount_wager_cents: number | string
+  amount_locked_cents: number | string
+  valid_until: string
+  activated_at: string | null
+  finished_at: string | null
+  game_id?: string
+  spins_count?: number | string
+  spins_used?: number | string
+  strategy?: string
+}
+
 export default function BonusesPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
@@ -87,7 +105,7 @@ export default function BonusesPage() {
       })
 
       if (data) {
-        const transformedData: BonusData[] = data.map(item => {
+        const transformedData: BonusData[] = data.map((item: RawBonusData) => {
           const baseData = {
             id: item.id,
             created_at: item.created_at,
@@ -102,7 +120,7 @@ export default function BonusesPage() {
             finished_at: item.finished_at
           }
 
-          if ('game_id' in item) {
+          if (item.game_id !== undefined) {
             return {
               ...baseData,
               type: 'freespin' as const,
