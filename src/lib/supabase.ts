@@ -137,17 +137,7 @@ export async function getPlayersData({ page = 1, pageSize = 10, searchQuery = ''
 
     let query = supabase
       .from('users_view')
-      .select(`
-        id,
-        email,
-        created_at,
-        last_sign_in_at,
-        suspended,
-        disabled,
-        confirmed_at,
-        tags,
-        ctag
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     // Add search if provided
@@ -155,13 +145,12 @@ export async function getPlayersData({ page = 1, pageSize = 10, searchQuery = ''
       query = query.or(`email.ilike.%${searchQuery}%,tags.ilike.%${searchQuery}%`);
     }
 
-    const { data, error, count } = await query
-      .range(offset, offset + pageSize - 1)
-      .select('*', { count: 'exact' });
+    const { data, error } = await query.range(offset, offset + pageSize - 1);
+    const countQuery = await query.select('id');
 
     if (error) throw error;
 
-    return { data, count };
+    return { data, count: countQuery.data?.length || 0 };
   } catch (error) {
     console.error('Error fetching players data:', error);
     throw error;
@@ -169,10 +158,89 @@ export async function getPlayersData({ page = 1, pageSize = 10, searchQuery = ''
 }
 
 interface GetCasinoGamesDataParams {
-  startDate: string
-  endDate: string
-  page?: number
-  pageSize?: number
+  startDate: string;
+  endDate: string;
+  page?: number;
+  pageSize?: number;
+}
+
+interface GetGamesCatalogParams {
+  page?: number;
+  pageSize?: number;
+  filters: {
+    provider?: string;
+    category?: string;
+  };
+}
+
+export async function getCasinoGamesData({
+  startDate,
+  endDate,
+  page = 1,
+  pageSize = 10
+}: GetCasinoGamesDataParams) {
+  try {
+    const offset = (page - 1) * pageSize;
+    let query = supabase
+      .from('game_sessions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
+
+    const { data, error } = await query.range(offset, offset + pageSize - 1);
+    const countQuery = await query.select('id');
+
+    if (error) throw error;
+
+    return {
+      data: data?.map(session => ({
+        ...session,
+        bet_amount_cents: Number(session.bet_amount_cents),
+        win_amount_cents: Number(session.win_amount_cents)
+      })) || [],
+      count: countQuery.data?.length || 0,
+      error: null
+    };
+  } catch (error) {
+    console.error('Error fetching casino games data:', error);
+    return {
+      data: [],
+      count: 0,
+      error: error instanceof Error ? error : new Error('Unknown error occurred')
+    };
+  }
+}
+
+export async function getGamesCatalog({
+  page = 1,
+  pageSize = 10,
+  filters
+}: GetGamesCatalogParams) {
+  try {
+    let query = supabase
+      .from('a8r_games_view')
+      .select('*')
+      .order('title');
+
+    if (filters?.provider) {
+      query = query.eq('provider', filters.provider);
+    }
+    if (filters?.category) {
+      query = query.eq('category', filters.category);
+    }
+
+    const offset = (page - 1) * pageSize;
+    const { data, error } = await query.range(offset, offset + pageSize - 1);
+    const countQuery = await query.select('id');
+
+    if (error) throw error;
+
+    return { data, count: countQuery.data?.length || 0 };
+  } catch (error) {
+    console.error('Error fetching games catalog:', error);
+    throw error;
+  }
 }
 
 interface GetPaymentsDataParams {
@@ -187,50 +255,6 @@ interface GetPaymentsDataParams {
   }
 }
 
-export async function getCasinoGamesData({
-  startDate,
-  endDate,
-  page = 1,
-  pageSize = 10
-}: GetCasinoGamesDataParams) {
-  try {
-    const offset = (page - 1) * pageSize
-    const { data, error } = await supabase
-      .from('game_sessions')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .gte('created_at', startDate)
-      .lte('created_at', endDate)
-      .range(offset, offset + pageSize - 1)
-
-    if (error) throw error
-
-    // Get total count in a separate query
-    const { count } = await supabase
-      .from('game_sessions')
-      .select('*', { head: true })
-      .gte('created_at', startDate)
-      .lte('created_at', endDate)
-
-    return {
-      data: data?.map(session => ({
-        ...session,
-        bet_amount_cents: Number(session.bet_amount_cents),
-        win_amount_cents: Number(session.win_amount_cents)
-      })) || [],
-      count: count || 0,
-      error: null
-    }
-  } catch (error) {
-    console.error('Error fetching casino games data:', error)
-    return {
-      data: [],
-      count: 0,
-      error: error instanceof Error ? error : new Error('Unknown error occurred')
-    }
-  }
-}
-
 export async function getPaymentsData({
   startDate,
   endDate,
@@ -239,110 +263,109 @@ export async function getPaymentsData({
   filters = {}
 }: GetPaymentsDataParams) {
   try {
-    const offset = (page - 1) * pageSize
+    const offset = (page - 1) * pageSize;
     let query = supabase
       .from('payments')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false });
 
     if (startDate) {
-      query = query.gte('created_at', startDate)
+      query = query.gte('created_at', startDate);
     }
     if (endDate) {
-      query = query.lte('created_at', endDate)
+      query = query.lte('created_at', endDate);
     }
     if (filters.action) {
-      query = query.eq('action', filters.action)
+      query = query.eq('action', filters.action);
     }
     if (filters.success !== undefined) {
-      query = query.eq('success', filters.success)
+      query = query.eq('success', filters.success);
     }
     if (filters.currency) {
-      query = query.eq('currency', filters.currency)
+      query = query.eq('currency', filters.currency);
     }
 
-    const { data, error } = await query.range(offset, offset + pageSize - 1)
+    const { data, error } = await query.range(offset, offset + pageSize - 1);
+    const countQuery = await query.select('id');
 
-    if (error) throw error
-
-    // Get total count in a separate query
-    const { count } = await supabase
-      .from('payments')
-      .select('*', { head: true })
-      .gte('created_at', startDate)
-      .lte('created_at', endDate)
+    if (error) throw error;
 
     return {
       data: data?.map(payment => ({
         ...payment,
         amount_cents: Number(payment.amount_cents)
       })) || [],
-      count: count || 0,
+      count: countQuery.data?.length || 0,
       error: null
-    }
+    };
   } catch (error) {
-    console.error('Error fetching payments data:', error)
+    console.error('Error fetching payments data:', error);
     return {
       data: [],
       count: 0,
       error: error instanceof Error ? error : new Error('Unknown error occurred')
-    }
+    };
   }
 }
 
-// Games Catalog
-export async function getGamesCatalog({
-  page = 1,
-  pageSize = 10,
-  filters = {}
-}) {
-  try {
-    let query = supabase
-      .from('a8r_games_view')
-      .select(`
-        id,
-        title,
-        provider,
-        producer,
-        category,
-        devices,
-        payout,
-        jackpot,
-        freespins,
-        live,
-        feature_group,
-        released_at
-      `)
-      .order('title');
-
-    if (filters.provider) {
-      query = query.eq('provider', filters.provider);
-    }
-    if (filters.category) {
-      query = query.eq('category', filters.category);
-    }
-
-    const offset = (page - 1) * pageSize;
-    const { data, error, count } = await query
-      .range(offset, offset + pageSize - 1)
-      .select('*', { count: 'exact' });
-
-    if (error) throw error;
-
-    return { data, count };
-  } catch (error) {
-    console.error('Error fetching games catalog:', error);
-    throw error;
-  }
+interface GetAffiliateReportsParams {
+  startDate: string;
+  endDate: string;
+  page?: number;
+  pageSize?: number;
 }
 
-// Affiliate Reports
+interface IncomeReport {
+  id: string;
+  date: string;
+  partner_id: string;
+  currency: string;
+  partner_income: number;
+}
+
+interface TrafficReport {
+  id: string;
+  date: string;
+  foreign_partner_id: string;
+  country: string;
+  visits: number;
+  clicks: number;
+  registrations_count: number;
+  deposits_count: number;
+  ftd_count: number;
+  cr: number;
+  cd: number;
+  cftd: number;
+  rftd: number;
+}
+
+interface ApiReport {
+  id: string;
+  date: string;
+  partner_id: string;
+  currency: string;
+  deposits_sum: number;
+  cashouts_sum: number;
+  ggr: number;
+  ngr: number;
+  clean_net_revenue: number;
+  deposits_count: number;
+  first_deposits_count: number;
+  qualified_players_count: number;
+  self_excluded_players_count: number;
+}
+
+interface CombinedReport extends IncomeReport {
+  traffic: TrafficReport | null;
+  api: ApiReport | null;
+}
+
 export async function getAffiliateReports({
   startDate,
   endDate,
   page = 1,
   pageSize = 10
-}) {
+}: GetAffiliateReportsParams) {
   try {
     // Get income reports
     const { data: incomeData, error: incomeError } = await supabase
@@ -409,12 +432,12 @@ export async function getAffiliateReports({
     if (apiError) throw apiError;
 
     // Combine and process the data
-    const combinedData = incomeData.map(income => {
-      const traffic = trafficData.find(t => 
+    const combinedData = (incomeData || []).map((income: IncomeReport) => {
+      const traffic = (trafficData || []).find((t: TrafficReport) => 
         t.foreign_partner_id === income.partner_id && 
         t.date.split('T')[0] === income.date.split('T')[0]
       );
-      const api = apiData.find(a => 
+      const api = (apiData || []).find((a: ApiReport) => 
         a.partner_id === income.partner_id && 
         a.date.split('T')[0] === income.date.split('T')[0]
       );
@@ -551,8 +574,15 @@ export async function getBonusData(params: GetBonusDataParams): Promise<GetBonus
   }
 }
 
-// Test access to all views
-export async function testAllViews() {
+interface TestResults {
+  [key: string]: {
+    success: boolean;
+    error?: string;
+    hasData?: boolean;
+  };
+}
+
+export async function testAllViews(): Promise<TestResults> {
   console.log('=== Testing Access to All Views ===')
   const views = [
     'users_view',
@@ -566,7 +596,7 @@ export async function testAllViews() {
     'freespin_issues_view'
   ]
 
-  const results = {}
+  const results: TestResults = {}
 
   for (const view of views) {
     try {
