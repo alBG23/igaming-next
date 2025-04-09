@@ -10,6 +10,7 @@ import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
 import { getCasinoGamesData, getGamesCatalog } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
+import { ColumnDef } from '@/components/ui/data-table'
 
 interface GameSession {
   id: string
@@ -122,41 +123,45 @@ export function CasinoGamesClient() {
     }
   }
 
-  const gameSessionColumns = [
+  const columns: ColumnDef<GameSession>[] = [
     {
       accessorKey: 'created_at',
       header: 'Start Time',
-      cell: ({ row }) => new Date(row.getValue('created_at')).toLocaleString()
+      cell: ({ row }: { row: any }) => new Date(row.getValue('created_at')).toLocaleString()
     },
     {
       accessorKey: 'game_id',
-      header: 'Game',
-      cell: ({ row }) => {
-        const game = games.find(g => g.id === row.getValue('game_id'))
-        return game?.title || row.getValue('game_id')
-      }
+      header: 'Game ID',
+      cell: ({ row }: { row: any }) => row.getValue('game_id')
     },
     {
       accessorKey: 'account_id',
-      header: 'Player'
+      header: 'Player',
+      cell: ({ row }: { row: any }) => row.getValue('account_id')
     },
     {
-      accessorKey: 'bets_sum',
-      header: 'Total Bets',
-      cell: ({ row }) => formatCurrency(row.getValue('bets_sum'))
+      accessorKey: 'bet_amount_cents',
+      header: 'Bet Amount',
+      cell: ({ row }: { row: any }) => formatCurrency(Number(row.getValue('bet_amount_cents')))
     },
     {
-      accessorKey: 'payoff_sum',
-      header: 'Total Payouts',
-      cell: ({ row }) => formatCurrency(row.getValue('payoff_sum'))
+      accessorKey: 'win_amount_cents',
+      header: 'Win Amount',
+      cell: ({ row }: { row: any }) => formatCurrency(Number(row.getValue('win_amount_cents')))
     },
     {
-      accessorKey: 'jackpot_win_cents',
-      header: 'Jackpot Win',
-      cell: ({ row }) => {
-        const amount = row.getValue('jackpot_win_cents')
-        return amount > 0 ? formatCurrency(amount) : '-'
-      }
+      accessorKey: 'currency',
+      header: 'Currency',
+      cell: ({ row }: { row: any }) => row.getValue('currency')
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }: { row: any }) => (
+        <Badge variant={row.getValue('status') === 'completed' ? 'success' : 'default'}>
+          {row.getValue('status')}
+        </Badge>
+      )
     }
   ]
 
@@ -286,7 +291,7 @@ export function CasinoGamesClient() {
             <Card>
               <CardContent className="p-0">
                 <DataTable
-                  columns={gameSessionColumns}
+                  columns={columns}
                   data={sessions}
                   searchKey="game_id"
                 />
