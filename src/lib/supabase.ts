@@ -208,7 +208,7 @@ export async function getCasinoGamesData({
     // Get total count in a separate query
     const { count } = await supabase
       .from('game_sessions')
-      .select('id', { count: 'exact', head: true })
+      .select('*', { head: true })
       .gte('created_at', startDate)
       .lte('created_at', endDate)
 
