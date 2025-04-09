@@ -67,6 +67,11 @@ interface RawBonusData {
   strategy?: string
 }
 
+interface GetBonusDataResponse {
+  data: RawBonusData[]
+  error: Error | null
+}
+
 export default function BonusesPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
@@ -97,15 +102,15 @@ export default function BonusesPage() {
         return
       }
 
-      const { data } = await getBonusData({
+      const response = await getBonusData({
         startDate: dateRange.from.toISOString(),
         endDate: dateRange.to.toISOString(),
         page: 1,
         pageSize: 100
-      })
+      }) as GetBonusDataResponse
 
-      if (data) {
-        const transformedData: BonusData[] = data.map((item: RawBonusData) => {
+      if (response.data) {
+        const transformedData = response.data.map(item => {
           const baseData = {
             id: item.id,
             created_at: item.created_at,
@@ -135,7 +140,7 @@ export default function BonusesPage() {
               strategy: String(item.strategy)
             } as BonusIssue
           }
-        })
+        }) as BonusData[]
 
         setBonusData(transformedData)
 
