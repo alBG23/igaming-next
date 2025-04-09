@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { getCasinoGamesData, getGamesCatalog } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
 import { ColumnDef } from '@tanstack/react-table'
+import { DateRange } from 'react-day-picker'
 
 interface GameSession {
   id: string
@@ -51,7 +52,7 @@ interface GameMetrics {
 
 export function CasinoGamesClient() {
   const [activeTab, setActiveTab] = useState('overview')
-  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>()
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
