@@ -40,15 +40,6 @@ interface FreespinIssue extends BaseBonus {
 
 type BonusData = BonusIssue | FreespinIssue
 
-interface BonusMetrics {
-  totalBonusesIssued: number
-  totalBonusAmount: number
-  totalFreespinsIssued: number
-  totalFreespinsWinAmount: number
-  activeWageringAmount: number
-  completionRate: number
-}
-
 interface RawBonusData {
   id: string
   created_at: string
@@ -67,9 +58,13 @@ interface RawBonusData {
   strategy?: string
 }
 
-interface GetBonusDataResponse {
-  data: RawBonusData[]
-  error: Error | null
+interface BonusMetrics {
+  totalBonusesIssued: number
+  totalBonusAmount: number
+  totalFreespinsIssued: number
+  totalFreespinsWinAmount: number
+  activeWageringAmount: number
+  completionRate: number
 }
 
 export default function BonusesPage() {
@@ -110,7 +105,7 @@ export default function BonusesPage() {
       })
 
       if (data) {
-        const transformedData = data.map(item => {
+        const transformedData = data.map((item: RawBonusData) => {
           const baseData = {
             id: item.id,
             created_at: item.created_at,
@@ -125,7 +120,7 @@ export default function BonusesPage() {
             finished_at: item.finished_at
           }
 
-          if ('game_id' in item) {
+          if (item.game_id !== undefined) {
             return {
               ...baseData,
               type: 'freespin' as const,
