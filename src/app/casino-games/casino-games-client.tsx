@@ -86,7 +86,11 @@ export function CasinoGamesClient() {
       // Fetch games catalog
       const { data: gamesData } = await getGamesCatalog({
         page: 1,
-        pageSize: 100
+        pageSize: 100,
+        filters: {
+          provider: undefined,
+          category: undefined
+        }
       })
 
       if (sessionsData && gamesData) {
