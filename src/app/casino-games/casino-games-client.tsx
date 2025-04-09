@@ -77,8 +77,8 @@ export function CasinoGamesClient() {
 
       // Fetch game sessions
       const { data: sessionsData } = await getCasinoGamesData({
-        startDate: dateRange?.from?.toISOString(),
-        endDate: dateRange?.to?.toISOString(),
+        startDate: dateRange?.from?.toISOString() || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        endDate: dateRange?.to?.toISOString() || new Date().toISOString(),
         page: 1,
         pageSize: 100
       })
