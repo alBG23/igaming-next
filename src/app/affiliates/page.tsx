@@ -94,8 +94,8 @@ export default function AffiliatesPage() {
       setLoading(true)
 
       const { data } = await getAffiliateReports({
-        startDate: dateRange?.from?.toISOString(),
-        endDate: dateRange?.to?.toISOString(),
+        startDate: dateRange?.from?.toISOString() || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        endDate: dateRange?.to?.toISOString() || new Date().toISOString(),
         page: 1,
         pageSize: 100
       })
