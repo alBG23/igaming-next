@@ -168,84 +168,49 @@ export async function getPlayersData({ page = 1, pageSize = 10, searchQuery = ''
   }
 }
 
-// Payments Report
-export async function getPaymentsData({ 
-  startDate, 
-  endDate, 
-  page = 1, 
-  pageSize = 10,
-  filters = {}
-}) {
-  try {
-    let query = supabase
-      .from('payments_view')
-      .select(`
-        id,
-        created_at,
-        finished_at,
-        user_id,
-        action,
-        success,
-        amount_cents,
-        currency,
-        account,
-        payment_system_id,
-        payment_code,
-        tx
-      `)
-      .order('created_at', { ascending: false });
+interface GetCasinoGamesDataParams {
+  startDate: string
+  endDate: string
+  page?: number
+  pageSize?: number
+}
 
-    // Apply date filters
-    if (startDate) {
-      query = query.gte('created_at', startDate);
-    }
-    if (endDate) {
-      query = query.lte('created_at', endDate);
-    }
-
-    // Apply additional filters
-    if (filters.action) {
-      query = query.eq('action', filters.action);
-    }
-    if (filters.success !== undefined) {
-      query = query.eq('success', filters.success);
-    }
-    if (filters.currency) {
-      query = query.eq('currency', filters.currency);
-    }
-
-    const offset = (page - 1) * pageSize;
-    const { data, error, count } = await query
-      .range(offset, offset + pageSize - 1)
-      .select('*', { count: 'exact' });
-
-    if (error) throw error;
-
-    return { data, count };
-  } catch (error) {
-    console.error('Error fetching payments data:', error);
-    throw error;
+interface GetPaymentsDataParams {
+  startDate: string
+  endDate: string
+  page?: number
+  pageSize?: number
+  filters?: {
+    action?: string
+    success?: boolean
+    currency?: string
   }
 }
 
-// Casino Games Report
 export async function getCasinoGamesData({
   startDate,
   endDate,
   page = 1,
   pageSize = 10
-}) {
+}: GetCasinoGamesDataParams) {
   try {
     const offset = (page - 1) * pageSize
-    const { data, error, count } = await supabase
+    const { data, error } = await supabase
       .from('game_sessions')
-      .select('*', { count: 'exact' })
+      .select('*')
       .order('created_at', { ascending: false })
       .gte('created_at', startDate)
       .lte('created_at', endDate)
       .range(offset, offset + pageSize - 1)
 
     if (error) throw error
+
+    // Get total count using a separate query
+    const { count } = await supabase
+      .from('game_sessions')
+      .select('id')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
 
     return {
       data: data?.map(session => ({
@@ -258,6 +223,65 @@ export async function getCasinoGamesData({
     }
   } catch (error) {
     console.error('Error fetching casino games data:', error)
+    return {
+      data: [],
+      count: 0,
+      error: error instanceof Error ? error : new Error('Unknown error occurred')
+    }
+  }
+}
+
+export async function getPaymentsData({
+  startDate,
+  endDate,
+  page = 1,
+  pageSize = 10,
+  filters = {}
+}: GetPaymentsDataParams) {
+  try {
+    const offset = (page - 1) * pageSize
+    let query = supabase
+      .from('payments')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (startDate) {
+      query = query.gte('created_at', startDate)
+    }
+    if (endDate) {
+      query = query.lte('created_at', endDate)
+    }
+    if (filters.action) {
+      query = query.eq('action', filters.action)
+    }
+    if (filters.success !== undefined) {
+      query = query.eq('success', filters.success)
+    }
+    if (filters.currency) {
+      query = query.eq('currency', filters.currency)
+    }
+
+    const { data, error } = await query.range(offset, offset + pageSize - 1)
+
+    if (error) throw error
+
+    // Get total count in a separate query
+    const { count } = await supabase
+      .from('payments')
+      .select('*', { head: true })
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+
+    return {
+      data: data?.map(payment => ({
+        ...payment,
+        amount_cents: Number(payment.amount_cents)
+      })) || [],
+      count: count || 0,
+      error: null
+    }
+  } catch (error) {
+    console.error('Error fetching payments data:', error)
     return {
       data: [],
       count: 0,
