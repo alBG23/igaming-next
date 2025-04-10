@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database.types'
 
 // Validate environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -18,7 +19,7 @@ if (!supabaseAnonKey) {
 }
 
 // Create a single supabase client for interacting with your database
-export const supabase = createClient(
+export const supabase = createClient<Database>(
   supabaseUrl,
   supabaseAnonKey,
   {
@@ -620,4 +621,19 @@ export async function testAllViews(): Promise<TestResults> {
   }
 
   return results
+}
+
+export async function getAvailableTables() {
+  try {
+    const { data, error } = await supabase
+      .from('information_schema.tables')
+      .select('table_name')
+      .eq('table_schema', 'public');
+
+    if (error) throw error;
+    return data?.map(table => table.table_name) || [];
+  } catch (error) {
+    console.error('Error fetching available tables:', error);
+    return [];
+  }
 } 

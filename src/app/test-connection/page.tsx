@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { testSupabaseConnection, testAllViews } from "@/lib/supabase"
 import { AlertCircle, CheckCircle, XCircle } from "lucide-react"
+import { createClient } from '@supabase/supabase-js'
 
 interface ViewStatus {
   success: boolean
@@ -15,107 +16,66 @@ interface ViewResults {
   [key: string]: ViewStatus
 }
 
-export default function TestConnectionPage() {
-  const [loading, setLoading] = useState(true)
-  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking')
-  const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [viewResults, setViewResults] = useState<ViewResults>({})
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-  useEffect(() => {
-    testConnection()
-  }, [])
+export const dynamic = 'force-dynamic'
 
-  const testConnection = async () => {
-    try {
-      setLoading(true)
-      setConnectionStatus('checking')
-      setConnectionError(null)
+export default async function TestConnectionPage() {
+  try {
+    // Test 1: Check if we can connect to Supabase
+    const { data: testData, error: testError } = await supabase
+      .rpc('get_tables')
 
-      // Test basic connection
-      const { connected, error: connectionError } = await testSupabaseConnection()
-      
-      if (!connected || connectionError) {
-        throw new Error(`Database connection failed: ${connectionError}`)
-      }
-
-      setConnectionStatus('connected')
-
-      // Test all views
-      const results = await testAllViews()
-      setViewResults(results)
-
-    } catch (err) {
-      console.error('Connection test error:', err)
-      setConnectionStatus('disconnected')
-      setConnectionError(err instanceof Error ? err.message : 'An unknown error occurred')
-    } finally {
-      setLoading(false)
+    if (testError) {
+      throw testError
     }
+
+    // Test 2: Check database permissions
+    const { data: roleData, error: roleError } = await supabase
+      .rpc('get_current_role')
+
+    if (roleError) {
+      throw roleError
+    }
+
+    return (
+      <div className="p-8">
+        <h1 className="text-2xl font-bold mb-6">Connection Test</h1>
+        <div className="space-y-4">
+          <div className="p-4 bg-green-100 rounded-lg">
+            <h2 className="font-semibold">Connection Successful!</h2>
+            <p>Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL}</p>
+            <p>Current Role: {roleData}</p>
+          </div>
+          <div className="p-4 bg-blue-100 rounded-lg">
+            <h2 className="font-semibold">Available Tables:</h2>
+            <pre className="mt-2 p-2 bg-white rounded">
+              {JSON.stringify(testData, null, 2)}
+            </pre>
+          </div>
+        </div>
+      </div>
+    )
+  } catch (error) {
+    console.error('Connection Test Error:', error)
+    return (
+      <div className="p-8">
+        <h1 className="text-2xl font-bold mb-6">Connection Test</h1>
+        <div className="p-4 bg-red-100 rounded-lg">
+          <h2 className="font-semibold text-red-800">Connection Failed</h2>
+          <p className="mt-2 text-red-600">
+            Error: {error instanceof Error ? error.message : 'Unknown error'}
+          </p>
+          <div className="mt-4">
+            <h3 className="font-semibold">Configuration:</h3>
+            <p>Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL}</p>
+            <p>Anon Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 10)}...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
-
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Database Connection Test</h1>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Connection Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            {loading ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900" />
-            ) : connectionStatus === 'connected' ? (
-              <CheckCircle className="h-5 w-5 text-green-500" />
-            ) : (
-              <XCircle className="h-5 w-5 text-red-500" />
-            )}
-            <span className="font-medium">
-              {loading ? 'Checking connection...' : 
-               connectionStatus === 'connected' ? 'Connected to database' : 
-               'Connection failed'}
-            </span>
-          </div>
-          {connectionError && (
-            <div className="mt-2 text-sm text-red-600">
-              Error: {connectionError}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>View Access Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {Object.entries(viewResults).map(([view, status]) => (
-              <div key={view} className="flex items-start gap-2 border-b pb-2">
-                <div className="mt-1">
-                  {status.success ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                  )}
-                </div>
-                <div>
-                  <div className="font-medium">{view}</div>
-                  {status.success ? (
-                    <div className="text-sm text-green-600">
-                      {status.hasData ? 'Data available' : 'View accessible but no data'}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-red-600">
-                      {status.error}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
 } 
