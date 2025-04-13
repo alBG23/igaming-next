@@ -19,7 +19,7 @@ if (!supabaseAnonKey) {
 }
 
 // Create a single supabase client for interacting with your database
-export const supabase = createClient<Database>(
+const supabase = createClient<Database>(
   supabaseUrl,
   supabaseAnonKey,
   {
@@ -32,6 +32,8 @@ export const supabase = createClient<Database>(
     }
   }
 )
+
+export { supabase }
 
 // Test the connection with a simple query to users_view
 export async function testSupabaseConnection() {
@@ -77,19 +79,20 @@ export async function testSupabaseConnection() {
 // Function to get dashboard metrics
 export async function getDashboardMetrics() {
   try {
-    // Get active users count (users who have logged in within last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
 
+    // Get active users count (users who have logged in within last 30 days)
     const { data: activeUsers, error: activeUsersError } = await supabase
       .from('users_view')
       .select('id')
-      .gte('last_sign_in_at', thirtyDaysAgo.toISOString())
+      .gte('last_sign_in_at', thirtyDaysAgoStr)
       .not('last_sign_in_at', 'is', null);
 
     if (activeUsersError) throw activeUsersError;
 
-    // Get recent payments
+    // Get recent successful payments
     const { data: recentPayments, error: paymentsError } = await supabase
       .from('payments_view')
       .select(`
@@ -98,37 +101,118 @@ export async function getDashboardMetrics() {
         amount_cents,
         currency,
         action,
-        success
+        success,
+        user_id
       `)
+      .eq('success', true)
       .order('created_at', { ascending: false })
       .limit(10);
 
     if (paymentsError) throw paymentsError;
 
-    // Get revenue metrics from api_reports
-    const { data: revenueData, error: revenueError } = await supabase
-      .from('api_reports')
+    // Get daily payment totals
+    const { data: dailyPayments, error: dailyPaymentsError } = await supabase
+      .from('payments_view')
       .select(`
-        date,
-        deposits_sum,
-        cashouts_sum,
-        ggr,
-        ngr
+        created_at,
+        action,
+        amount_cents,
+        currency
       `)
-      .order('date', { ascending: false })
-      .limit(30);
+      .eq('success', true)
+      .gte('created_at', thirtyDaysAgoStr)
+      .order('created_at', { ascending: false });
 
-    if (revenueError) throw revenueError;
+    if (dailyPaymentsError) throw dailyPaymentsError;
+
+    // Get casino game results
+    const { data: gameResults, error: gameResultsError } = await supabase
+      .from('casino_games_view')
+      .select(`
+        created_at,
+        bet_amount,
+        win_amount,
+        user_id
+      `)
+      .gte('created_at', thirtyDaysAgoStr)
+      .order('created_at', { ascending: false });
+
+    if (gameResultsError) throw gameResultsError;
+
+    // Process the data
+    const processedData = processMetrics(dailyPayments, gameResults);
 
     return {
       activeUsers: activeUsers?.length || 0,
-      recentPayments,
-      revenueData
+      recentPayments: recentPayments?.map(payment => ({
+        ...payment,
+        amount_cents: Number(payment.amount_cents)
+      })) || [],
+      revenueData: processedData
     };
   } catch (error) {
     console.error('Error fetching dashboard metrics:', error);
     throw error;
   }
+}
+
+// Helper function to process metrics
+function processMetrics(payments: any[], games: any[]) {
+  const dailyMetrics: Record<string, {
+    date: string;
+    deposits_sum: number;
+    cashouts_sum: number;
+    ggr: number;
+    ngr: number;
+  }> = {};
+
+  // Process payments
+  payments.forEach(payment => {
+    const date = new Date(payment.created_at).toISOString().split('T')[0];
+    if (!dailyMetrics[date]) {
+      dailyMetrics[date] = {
+        date,
+        deposits_sum: 0,
+        cashouts_sum: 0,
+        ggr: 0,
+        ngr: 0
+      };
+    }
+
+    const amount = Number(payment.amount_cents) || 0;
+    if (payment.action === 'deposit') {
+      dailyMetrics[date].deposits_sum += amount;
+    } else if (payment.action === 'cashout') {
+      dailyMetrics[date].cashouts_sum += amount;
+    }
+  });
+
+  // Process game results
+  games.forEach(game => {
+    const date = new Date(game.created_at).toISOString().split('T')[0];
+    if (!dailyMetrics[date]) {
+      dailyMetrics[date] = {
+        date,
+        deposits_sum: 0,
+        cashouts_sum: 0,
+        ggr: 0,
+        ngr: 0
+      };
+    }
+
+    const betAmount = Number(game.bet_amount) || 0;
+    const winAmount = Number(game.win_amount) || 0;
+    dailyMetrics[date].ggr += betAmount - winAmount;
+  });
+
+  // Calculate NGR (GGR for now, since we don't have bonus data)
+  Object.values(dailyMetrics).forEach(metric => {
+    metric.ngr = metric.ggr; // In a real implementation, we would subtract bonuses here
+  });
+
+  // Convert to array and sort by date
+  return Object.values(dailyMetrics)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 // Players Report

@@ -7,21 +7,23 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getAvailableTables } from '@/lib/supabase';
 import { formatDate, formatCurrency, formatNumber } from '@/lib/utils';
-import { LineChart, BarChart, PieChart } from '@tremor/react';
+import { LineChart, BarChart } from '@tremor/react';
 
 type Message = {
   role: 'user' | 'assistant';
   content: string;
   visualization?: {
-    type: 'table' | 'line' | 'bar' | 'pie' | 'text';
-    data: any;
+    type: 'line' | 'bar' | 'text' | 'table';
     title?: string;
     description?: string;
-    metrics?: {
+    data: any;
+    categories?: string[];
+    values?: string[];
+    metrics?: Array<{
       name: string;
       value: string;
       change?: string;
-    }[];
+    }>;
   };
 };
 
@@ -291,15 +293,19 @@ Try queries like:
           {messages.length > 0 && messages[messages.length - 1].visualization && (
             <Card className="p-4">
               {messages[messages.length - 1].visualization?.title && (
-                <h3 className="text-xl font-semibold mb-2">{messages[messages.length - 1].visualization.title}</h3>
+                <h3 className="text-xl font-semibold mb-2">
+                  {messages[messages.length - 1].visualization?.title}
+                </h3>
               )}
               {messages[messages.length - 1].visualization?.description && (
-                <p className="text-sm text-gray-500 mb-4">{messages[messages.length - 1].visualization.description}</p>
+                <p className="text-sm text-gray-500 mb-4">
+                  {messages[messages.length - 1].visualization?.description}
+                </p>
               )}
               
               {messages[messages.length - 1].visualization?.metrics && (
                 <div className="grid grid-cols-3 gap-4 mb-6">
-                  {messages[messages.length - 1].visualization.metrics.map((metric, index) => (
+                  {messages[messages.length - 1].visualization?.metrics?.map((metric, index) => (
                     <div key={index} className="border rounded-lg p-4">
                       <p className="text-sm text-gray-500">{metric.name}</p>
                       <p className="text-xl font-semibold">{metric.value}</p>

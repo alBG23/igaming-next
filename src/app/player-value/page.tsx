@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button"
 import { DollarSign, TrendingUp, Users, Activity, Search, Filter, Clock, AlertCircle } from 'lucide-react'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { supabase, testSupabaseConnection } from "@/lib/supabase"
+import { DatePickerWithRange } from '@/components/ui/date-range-picker'
+import { DateRange } from 'react-day-picker'
+import { createClient } from '@/lib/supabase'
+import { BarChart, DonutChart } from '@tremor/react'
+import { formatCurrency, formatPercentage } from '@/lib/utils'
 
 interface PlayerValueMetrics {
   avg_lifetime_value: number
@@ -33,6 +38,25 @@ const fallbackChartData = [
   { month: 'Jun', value: 1600 }
 ]
 
+interface PlayerSegment {
+  id: string
+  segment: string
+  playerCount: number
+  totalDeposits: number
+  totalWithdrawals: number
+  netGaming: number
+  avgLifetimeValue: number
+  retentionRate: number
+  churnRate: number
+}
+
+const valueCategories = {
+  'High Value': { min: 10000, color: 'emerald' },
+  'Mid Value': { min: 1000, color: 'blue' },
+  'Low Value': { min: 100, color: 'yellow' },
+  'Micro Value': { min: 0, color: 'gray' }
+}
+
 export default function PlayerValuePage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [searchQuery, setSearchQuery] = useState('')
@@ -40,10 +64,15 @@ export default function PlayerValuePage() {
   const [chartData, setChartData] = useState(fallbackChartData)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const [segments, setSegments] = useState<PlayerSegment[]>([])
+  const [distributionData, setDistributionData] = useState<any[]>([])
+
+  const supabase = createClient()
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [dateRange])
 
   const fetchData = async () => {
     try {
@@ -68,8 +97,154 @@ export default function PlayerValuePage() {
 
       if (chartError) throw chartError
 
-      setMetrics(metricsData)
-      setChartData(chartData)
+      const startDate = dateRange?.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      const endDate = dateRange?.to || new Date()
+
+      // Fetch players data
+      const { data: playersData, error: playersError } = await supabase
+        .from('players')
+        .select('id, created_at')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
+
+      if (playersError) throw playersError
+
+      // Fetch payments data
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments_view')
+        .select('user_id, amount, type')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
+
+      if (paymentsError) throw paymentsError
+
+      // Fetch gaming data
+      const { data: gamingData, error: gamingError } = await supabase
+        .from('casino_games_view')
+        .select('player_id, bet_amount, win_amount')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
+
+      if (gamingError) throw gamingError
+
+      // Process data by player
+      const playerMetrics = new Map<string, {
+        deposits: number
+        withdrawals: number
+        bets: number
+        wins: number
+        lastActivity: Date
+      }>()
+
+      // Process payments
+      paymentsData?.forEach(payment => {
+        const playerId = payment.user_id
+        if (!playerId) return
+
+        const current = playerMetrics.get(playerId) || {
+          deposits: 0,
+          withdrawals: 0,
+          bets: 0,
+          wins: 0,
+          lastActivity: new Date(0)
+        }
+
+        if (payment.type === 'deposit') {
+          current.deposits += payment.amount
+        } else if (payment.type === 'withdrawal') {
+          current.withdrawals += payment.amount
+        }
+
+        playerMetrics.set(playerId, current)
+      })
+
+      // Process gaming activity
+      gamingData?.forEach(game => {
+        const playerId = game.player_id
+        if (!playerId) return
+
+        const current = playerMetrics.get(playerId) || {
+          deposits: 0,
+          withdrawals: 0,
+          bets: 0,
+          wins: 0,
+          lastActivity: new Date(0)
+        }
+
+        current.bets += game.bet_amount
+        current.wins += game.win_amount
+        current.lastActivity = new Date(game.created_at)
+
+        playerMetrics.set(playerId, current)
+      })
+
+      // Calculate segments
+      const segments: PlayerSegment[] = []
+      const distribution = new Map<string, number>()
+
+      playerMetrics.forEach((metrics, playerId) => {
+        const ltv = metrics.deposits - metrics.withdrawals + (metrics.bets - metrics.wins)
+        let segment = 'Micro Value'
+
+        for (const [category, { min }] of Object.entries(valueCategories)) {
+          if (ltv >= min) {
+            segment = category
+            break
+          }
+        }
+
+        distribution.set(segment, (distribution.get(segment) || 0) + 1)
+
+        const existingSegment = segments.find(s => s.segment === segment)
+        if (existingSegment) {
+          existingSegment.playerCount++
+          existingSegment.totalDeposits += metrics.deposits
+          existingSegment.totalWithdrawals += metrics.withdrawals
+          existingSegment.netGaming += metrics.bets - metrics.wins
+          existingSegment.avgLifetimeValue = (existingSegment.totalDeposits - existingSegment.totalWithdrawals + existingSegment.netGaming) / existingSegment.playerCount
+        } else {
+          segments.push({
+            id: segment.toLowerCase().replace(' ', '-'),
+            segment,
+            playerCount: 1,
+            totalDeposits: metrics.deposits,
+            totalWithdrawals: metrics.withdrawals,
+            netGaming: metrics.bets - metrics.wins,
+            avgLifetimeValue: metrics.deposits - metrics.withdrawals + (metrics.bets - metrics.wins),
+            retentionRate: 0, // Will be calculated below
+            churnRate: 0 // Will be calculated below
+          })
+        }
+      })
+
+      // Calculate retention and churn rates
+      const totalPlayers = playersData?.length || 0
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+      segments.forEach(segment => {
+        const activePlayers = Array.from(playerMetrics.entries())
+          .filter(([_, metrics]) => {
+            const ltv = metrics.deposits - metrics.withdrawals + (metrics.bets - metrics.wins)
+            const isInSegment = ltv >= valueCategories[segment.segment as keyof typeof valueCategories].min
+            const isActive = metrics.lastActivity >= thirtyDaysAgo
+            return isInSegment && isActive
+          })
+          .length
+
+        segment.retentionRate = (activePlayers / segment.playerCount) * 100
+        segment.churnRate = 100 - segment.retentionRate
+      })
+
+      setSegments(segments)
+
+      // Prepare distribution data for the donut chart
+      const distributionData = Array.from(distribution.entries()).map(([segment, count]) => ({
+        name: segment,
+        value: count,
+        color: valueCategories[segment as keyof typeof valueCategories].color
+      }))
+
+      setDistributionData(distributionData)
       setError(null)
     } catch (err) {
       console.error('Error:', err)
@@ -100,6 +275,7 @@ export default function PlayerValuePage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          <DatePickerWithRange value={dateRange} onChange={setDateRange} />
         </div>
       </div>
 
