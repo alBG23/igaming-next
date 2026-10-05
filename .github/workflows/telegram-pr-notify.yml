@@ -1,0 +1,44 @@
+name: Telegram PR Notifications
+
+on:
+  pull_request:
+    types: [opened, closed, reopened]
+
+jobs:
+  notify-telegram:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PR_ACTION: ${{ github.event.action }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD: ${{ github.event.pull_request.head.ref }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT_ID" ]; then
+            echo "Telegram bot token or chat ID secret not set; skipping notification."
+            exit 0
+          fi
+
+          if [ "$PR_ACTION" = "opened" ] || [ "$PR_ACTION" = "reopened" ]; then
+            MSG="🔀 *New Pull Request* in \`${REPO_NAME}\`%0A%0A*#${PR_NUMBER} ${PR_TITLE}*%0A👤 Author: @${PR_AUTHOR}%0A🌿 Branch: \`${PR_HEAD}\` ➔ \`${PR_BASE}\`%0A🔗 [View Pull Request](${PR_URL})"
+          elif [ "$PR_ACTION" = "closed" ] && [ "$PR_MERGED" = "true" ]; then
+            MSG="✅ *Pull Request Merged* into \`${PR_BASE}\` in \`${REPO_NAME}\`%0A%0A*#${PR_NUMBER} ${PR_TITLE}*%0A👤 Author: @${PR_AUTHOR}%0A🔗 [View Pull Request](${PR_URL})"
+          elif [ "$PR_ACTION" = "closed" ]; then
+            MSG="❌ *Pull Request Closed* (unmerged) in \`${REPO_NAME}\`%0A%0A*#${PR_NUMBER} ${PR_TITLE}*%0A👤 Author: @${PR_AUTHOR}%0A🔗 [View Pull Request](${PR_URL})"
+          else
+            exit 0
+          fi
+
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT_ID}" \
+            -d parse_mode="Markdown" \
+            -d disable_web_page_preview="true" \
+            -d text="${MSG}" > /dev/null || true
