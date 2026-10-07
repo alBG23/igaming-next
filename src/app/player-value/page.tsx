@@ -11,7 +11,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { supabase, testSupabaseConnection } from "@/lib/supabase"
 import { DatePickerWithRange } from '@/components/ui/date-range-picker'
 import { DateRange } from 'react-day-picker'
-import { createClient } from '@/lib/supabase'
+
 import { BarChart, DonutChart } from '@tremor/react'
 import { formatCurrency, formatPercentage } from '@/lib/utils'
 
@@ -68,7 +68,7 @@ export default function PlayerValuePage() {
   const [segments, setSegments] = useState<PlayerSegment[]>([])
   const [distributionData, setDistributionData] = useState<any[]>([])
 
-  const supabase = createClient()
+  // supabase is already imported
 
   useEffect(() => {
     fetchData()
@@ -137,7 +137,7 @@ export default function PlayerValuePage() {
       }>()
 
       // Process payments
-      paymentsData?.forEach(payment => {
+      paymentsData?.forEach((payment: any) => {
         const playerId = payment.user_id
         if (!playerId) return
 
@@ -159,7 +159,7 @@ export default function PlayerValuePage() {
       })
 
       // Process gaming activity
-      gamingData?.forEach(game => {
+      gamingData?.forEach((game: any) => {
         const playerId = game.player_id
         if (!playerId) return
 
