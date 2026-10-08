@@ -58,7 +58,10 @@ export default function Admin() {
       sessionTimeout: 30,
       passwordPolicy: 'strong',
       ipRestriction: false,
-      allowedIps: ''
+      allowedIps: '',
+      botProtection: true,
+      geofencing: true,
+      allowedCountries: 'US,CA,UK,EU'
     },
     integrations: {
       databaseConnected: true,
@@ -458,7 +461,7 @@ export default function Admin() {
                       </div>
                       
                       {settings.security.ipRestriction && (
-                        <div className="mt-2">
+                        <div className="mt-2 space-y-2">
                           <Label htmlFor="allowedIps" className="text-sm">Allowed IP Addresses</Label>
                           <p className="text-xs text-gray-500 mb-1">Enter comma-separated IP addresses or CIDR ranges</p>
                           <Input 
@@ -466,6 +469,49 @@ export default function Admin() {
                             placeholder="192.168.1.1, 10.0.0.0/24" 
                             value={settings.security.allowedIps}
                             onChange={(e) => handleSettingChange('security', 'allowedIps', e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-3 py-2 border-t pt-4 mt-4">
+                      <h3 className="text-lg font-medium">Advanced Bot & Scraping Protection (P4)</h3>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label htmlFor="botProtection" className="font-medium">Strict Rate Limiting & Bot Mitigation</Label>
+                          <p className="text-sm text-gray-500">Enable algorithmic bot mitigation, header validation, and token-based challenges</p>
+                        </div>
+                        <Switch 
+                          id="botProtection" 
+                          checked={settings.security.botProtection}
+                          onCheckedChange={(checked) => handleSettingChange('security', 'botProtection', checked)}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3 py-2 border-t pt-4 mt-4">
+                      <h3 className="text-lg font-medium">Geofencing & Regional Access</h3>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label htmlFor="geofencing" className="font-medium">Enable Geofencing</Label>
+                          <p className="text-sm text-gray-500">Block or allow traffic strictly based on CF-IPCountry headers</p>
+                        </div>
+                        <Switch 
+                          id="geofencing" 
+                          checked={settings.security.geofencing}
+                          onCheckedChange={(checked) => handleSettingChange('security', 'geofencing', checked)}
+                        />
+                      </div>
+                      
+                      {settings.security.geofencing && (
+                        <div className="mt-2 space-y-2">
+                          <Label htmlFor="allowedCountries" className="text-sm">Allowed Regions (ISO-3166 Codes)</Label>
+                          <p className="text-xs text-gray-500 mb-1">Enter comma-separated country codes</p>
+                          <Input 
+                            id="allowedCountries" 
+                            placeholder="US,CA,GB" 
+                            value={settings.security.allowedCountries}
+                            onChange={(e) => handleSettingChange('security', 'allowedCountries', e.target.value)}
                           />
                         </div>
                       )}
