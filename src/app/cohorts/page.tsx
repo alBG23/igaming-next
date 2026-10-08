@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AlertCircle } from 'lucide-react';
-import { createClient } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { LineChart, BarChart } from '@tremor/react';
 import { Table, TableHead, TableRow, TableHeaderCell, TableBody, TableCell } from '@tremor/react';
 import { formatCurrency, formatPercentage, formatDate } from '@/lib/utils';
@@ -35,7 +35,7 @@ export default function CohortsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = createClient();
+  // supabase is already imported
 
   const fetchData = async () => {
     try {
@@ -50,7 +50,7 @@ export default function CohortsPage() {
       if (cohortError) throw cohortError;
 
       if (cohortData) {
-        const processedCohorts = cohortData.map(item => ({
+        const processedCohorts = cohortData.map((item: any) => ({
           id: item.id,
           cohortDate: item.cohort_date,
           playerCount: item.player_count,
@@ -71,7 +71,7 @@ export default function CohortsPage() {
         setCohorts(processedCohorts);
 
         // Prepare retention trends data
-        const retentionData = processedCohorts.map(cohort => ({
+        const retentionData = processedCohorts.map((cohort: any) => ({
           date: formatDate(cohort.cohortDate),
           "Day 1": cohort.retentionRates.day1,
           "Day 7": cohort.retentionRates.day7,
@@ -82,7 +82,7 @@ export default function CohortsPage() {
         setRetentionTrends(retentionData);
 
         // Prepare value trends data
-        const valueData = processedCohorts.map(cohort => ({
+        const valueData = processedCohorts.map((cohort: any) => ({
           date: formatDate(cohort.cohortDate),
           "Avg First Deposit": cohort.metrics.avgFirstDeposit,
           "Avg Lifetime Value": cohort.metrics.avgLifetimeValue

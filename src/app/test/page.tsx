@@ -1,11 +1,11 @@
 import { getPlayersData, getCasinoGamesData, getPaymentsData, getAffiliateReports, getGamesCatalog } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+
 export default async function TestPage() {
   // Test players data
   const playersResponse = await getPlayersData({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    endDate: new Date().toISOString(),
     page: 1,
     pageSize: 5
   });
@@ -52,8 +52,8 @@ export default async function TestPage() {
         {/* Players Data */}
         <div className="border p-4 rounded-lg">
           <h2 className="text-xl font-semibold mb-4">Players Data</h2>
-          {playersResponse.error ? (
-            <p className="text-red-500">Error: {playersResponse.error.message}</p>
+          {(playersResponse as any).error ? (
+            <p className="text-red-500">Error: {(playersResponse as any).error.message}</p>
           ) : (
             <div>
               <p>Total Players: {playersResponse.count}</p>
@@ -114,8 +114,8 @@ export default async function TestPage() {
         {/* Affiliate Reports */}
         <div className="border p-4 rounded-lg">
           <h2 className="text-xl font-semibold mb-4">Affiliate Reports</h2>
-          {affiliateResponse.error ? (
-            <p className="text-red-500">Error: {affiliateResponse.error.message}</p>
+          {(affiliateResponse as any).error ? (
+            <p className="text-red-500">Error: {(affiliateResponse as any).error.message}</p>
           ) : (
             <div>
               <p>Total Reports: {affiliateResponse.count}</p>
@@ -135,8 +135,8 @@ export default async function TestPage() {
         {/* Games Catalog */}
         <div className="border p-4 rounded-lg">
           <h2 className="text-xl font-semibold mb-4">Games Catalog</h2>
-          {catalogResponse.error ? (
-            <p className="text-red-500">Error: {catalogResponse.error.message}</p>
+          {(catalogResponse as any).error ? (
+            <p className="text-red-500">Error: {(catalogResponse as any).error.message}</p>
           ) : (
             <div>
               <p>Total Games: {catalogResponse.count}</p>
