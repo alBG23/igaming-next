@@ -26,11 +26,13 @@ import {
   CheckCircle2,
   PlusCircle,
   RefreshCw,
-  XCircle
+  XCircle,
+  ShieldCheck
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AuthGuard from '../components/auth/AuthGuard';
+import DataAccuracyDashboard from '@/components/admin/DataAccuracyDashboard';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('users');
@@ -160,7 +162,7 @@ export default function Admin() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full grid grid-cols-4">
+            <TabsList className="w-full grid grid-cols-5">
               <TabsTrigger value="users" className="flex items-center gap-2">
                 <Users className="h-4 w-4" /> Users
               </TabsTrigger>
@@ -172,6 +174,9 @@ export default function Admin() {
               </TabsTrigger>
               <TabsTrigger value="notifications" className="flex items-center gap-2">
                 <Bell className="h-4 w-4" /> Notifications
+              </TabsTrigger>
+              <TabsTrigger value="accuracy" className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" /> Data Accuracy
               </TabsTrigger>
             </TabsList>
             
@@ -727,6 +732,10 @@ export default function Admin() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+            
+            <TabsContent value="accuracy" className="space-y-4 mt-6">
+              <DataAccuracyDashboard />
             </TabsContent>
           </Tabs>
         </div>

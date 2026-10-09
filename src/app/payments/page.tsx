@@ -207,34 +207,24 @@ export default function PaymentsPage() {
     fetchData()
   }, [activeTab, timeRange, dateRange])
 
-  useEffect(() => {
-    async function fetchMetrics() {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        // Use the imported supabase client
-        const { data, error } = await supabase
-          .from('payments_view')
-          .select('*')
-          .gte('created_at', date?.from?.toISOString() || '')
-          .lte('created_at', date?.to?.toISOString() || '')
-        
-        if (error) throw error
-        
-        // Process the data and update metrics
-        // ... rest of your metrics calculation logic ...
-        
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
-        console.error('Error fetching metrics:', err)
-      } finally {
-        setLoading(false)
-      }
+  const fetchMetrics = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payments_view')
+        .select('*')
+        .gte('created_at', currentRange.start.toISOString())
+        .lte('created_at', currentRange.end.toISOString())
+      
+      if (error) throw error
+      
+      // Process the data and update metrics
+      // ... rest of your metrics calculation logic ...
+      
+    } catch (err) {
+      console.error('Error fetching metrics:', err)
+      throw err
     }
-
-    fetchMetrics()
-  }, [date])
+  }
 
   const fetchTransactions = async () => {
     try {
@@ -333,7 +323,7 @@ export default function PaymentsPage() {
           {timeRange === 'custom' && (
             <DateRangePicker
               date={dateRange}
-              onDateChange={(range) => setDateRange(range)}
+              onDateChange={(range) => setDateRange(range as { from: Date; to: Date } | undefined)}
             />
           )}
         </div>
