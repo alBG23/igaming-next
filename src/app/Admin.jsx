@@ -31,6 +31,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AuthGuard from '../components/auth/AuthGuard';
+import TenantSecurityDashboard from '@/components/admin/TenantSecurityDashboard';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('users');
@@ -160,12 +161,15 @@ export default function Admin() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full grid grid-cols-4">
+            <TabsList className="w-full grid grid-cols-5">
               <TabsTrigger value="users" className="flex items-center gap-2">
                 <Users className="h-4 w-4" /> Users
               </TabsTrigger>
               <TabsTrigger value="security" className="flex items-center gap-2">
                 <Lock className="h-4 w-4" /> Security
+              </TabsTrigger>
+              <TabsTrigger value="tenant-security" className="flex items-center gap-2">
+                <Shield className="h-4 w-4" /> Tenant Isolation
               </TabsTrigger>
               <TabsTrigger value="integrations" className="flex items-center gap-2">
                 <Database className="h-4 w-4" /> Integrations
@@ -727,6 +731,10 @@ export default function Admin() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+            
+            <TabsContent value="tenant-security" className="space-y-4 mt-6">
+              <TenantSecurityDashboard />
             </TabsContent>
           </Tabs>
         </div>
