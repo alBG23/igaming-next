@@ -33,7 +33,7 @@ const supabase = createClient<Database>(
   }
 )
 
-export { supabase }
+export { supabase, createClient }
 
 // Test the connection with a simple query to users_view
 export async function testSupabaseConnection() {

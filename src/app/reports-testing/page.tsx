@@ -66,8 +66,8 @@ export default function ReportsTestingPage() {
         if (countriesError) throw countriesError
 
         // Extract unique values
-        const uniqueAffiliates = [...new Set(affiliatesData.map(a => a.s_tag_affiliate))].filter(Boolean)
-        const uniqueCountries = [...new Set(countriesData.map(c => c.country))].filter(Boolean)
+        const uniqueAffiliates = Array.from(new Set(affiliatesData.map(a => a.s_tag_affiliate))).filter(Boolean)
+        const uniqueCountries = Array.from(new Set(countriesData.map(c => c.country))).filter(Boolean)
 
         setAffiliates(uniqueAffiliates)
         setCountries(uniqueCountries)
