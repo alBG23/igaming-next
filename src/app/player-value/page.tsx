@@ -11,7 +11,6 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { supabase, testSupabaseConnection } from "@/lib/supabase"
 import { DatePickerWithRange } from '@/components/ui/date-range-picker'
 import { DateRange } from 'react-day-picker'
-import { createClient } from '@/lib/supabase'
 import { BarChart, DonutChart } from '@tremor/react'
 import { formatCurrency, formatPercentage } from '@/lib/utils'
 
@@ -68,7 +67,6 @@ export default function PlayerValuePage() {
   const [segments, setSegments] = useState<PlayerSegment[]>([])
   const [distributionData, setDistributionData] = useState<any[]>([])
 
-  const supabase = createClient()
 
   useEffect(() => {
     fetchData()
@@ -121,7 +119,7 @@ export default function PlayerValuePage() {
       // Fetch gaming data
       const { data: gamingData, error: gamingError } = await supabase
         .from('casino_games_view')
-        .select('player_id, bet_amount, win_amount')
+        .select('player_id, bet_amount, win_amount, created_at')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
 

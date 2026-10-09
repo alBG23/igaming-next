@@ -108,7 +108,7 @@ export default function AcquisitionPage() {
           new_users: newUsers,
           first_deposits: ftdCount,
           ftd_rate: newUsers > 0 ? (ftdCount / newUsers) * 100 : 0,
-          avg_first_deposit,
+          avg_first_deposit: avgFirstDeposit,
           sources
         })
       } catch (err) {

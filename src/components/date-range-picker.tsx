@@ -18,13 +18,15 @@ import {
 
 interface DateRangePickerProps {
   date: DateRange | undefined
-  setDate: (date: DateRange | undefined) => void
+  setDate?: (date: DateRange | undefined) => void
+  onDateChange?: (date: DateRange | undefined) => void
   className?: string
 }
 
 export function DateRangePicker({
   date,
   setDate,
+  onDateChange,
   className,
 }: DateRangePickerProps) {
   return (
@@ -63,8 +65,10 @@ export function DateRangePicker({
               initialFocus
               mode="range"
               defaultMonth={date?.from}
-              selected={date}
-              onSelect={setDate}
+              onSelect={(range) => {
+                if (setDate) setDate(range)
+                if (onDateChange) onDateChange(range)
+              }}
               numberOfMonths={2}
             />
           </div>
