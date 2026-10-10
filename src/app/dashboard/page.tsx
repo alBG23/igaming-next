@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { DatePickerWithRange } from '@/components/ui/date-range-picker'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency, formatNumber, formatPercentage } from '@/lib/utils'
 import { addDays, addMonths, addYears, format, startOfDay, startOfMonth, startOfWeek, startOfYear, subDays, subMonths, subWeeks, subYears } from 'date-fns'
@@ -343,9 +343,9 @@ export default function DashboardPage() {
             </SelectContent>
           </Select>
           {timeRange === 'custom' && (
-            <DateRangePicker
-              value={customRange}
-              onChange={setCustomRange}
+            <DatePickerWithRange
+              value={{ from: customRange.start, to: customRange.end } as any}
+              onChange={(range: any) => range && setCustomRange({ start: range.from, end: range.to })}
             />
           )}
         </div>

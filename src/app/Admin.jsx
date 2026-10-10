@@ -31,6 +31,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AuthGuard from '../components/auth/AuthGuard';
+import TenantConfig from '../components/admin/TenantConfig';
+import SupportTickets from '../components/admin/SupportTickets';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('users');
@@ -57,7 +59,10 @@ export default function Admin() {
       sessionTimeout: 30,
       passwordPolicy: 'strong',
       ipRestriction: false,
-      allowedIps: ''
+      allowedIps: '',
+      botProtection: true,
+      geofencing: true,
+      allowedCountries: 'US,CA,UK,EU'
     },
     integrations: {
       databaseConnected: true,
@@ -160,7 +165,7 @@ export default function Admin() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full grid grid-cols-4">
+            <TabsList className="w-full grid grid-cols-6">
               <TabsTrigger value="users" className="flex items-center gap-2">
                 <Users className="h-4 w-4" /> Users
               </TabsTrigger>
@@ -172,6 +177,12 @@ export default function Admin() {
               </TabsTrigger>
               <TabsTrigger value="notifications" className="flex items-center gap-2">
                 <Bell className="h-4 w-4" /> Notifications
+              </TabsTrigger>
+              <TabsTrigger value="white-label" className="flex items-center gap-2">
+                <Globe className="h-4 w-4" /> B2B Tenants
+              </TabsTrigger>
+              <TabsTrigger value="support-tickets" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" /> Support
               </TabsTrigger>
             </TabsList>
             
@@ -454,7 +465,7 @@ export default function Admin() {
                       </div>
                       
                       {settings.security.ipRestriction && (
-                        <div className="mt-2">
+                        <div className="mt-2 space-y-2">
                           <Label htmlFor="allowedIps" className="text-sm">Allowed IP Addresses</Label>
                           <p className="text-xs text-gray-500 mb-1">Enter comma-separated IP addresses or CIDR ranges</p>
                           <Input 
@@ -462,6 +473,49 @@ export default function Admin() {
                             placeholder="192.168.1.1, 10.0.0.0/24" 
                             value={settings.security.allowedIps}
                             onChange={(e) => handleSettingChange('security', 'allowedIps', e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-3 py-2 border-t pt-4 mt-4">
+                      <h3 className="text-lg font-medium">Advanced Bot & Scraping Protection (P4)</h3>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label htmlFor="botProtection" className="font-medium">Strict Rate Limiting & Bot Mitigation</Label>
+                          <p className="text-sm text-gray-500">Enable algorithmic bot mitigation, header validation, and token-based challenges</p>
+                        </div>
+                        <Switch 
+                          id="botProtection" 
+                          checked={settings.security.botProtection}
+                          onCheckedChange={(checked) => handleSettingChange('security', 'botProtection', checked)}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3 py-2 border-t pt-4 mt-4">
+                      <h3 className="text-lg font-medium">Geofencing & Regional Access</h3>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label htmlFor="geofencing" className="font-medium">Enable Geofencing</Label>
+                          <p className="text-sm text-gray-500">Block or allow traffic strictly based on CF-IPCountry headers</p>
+                        </div>
+                        <Switch 
+                          id="geofencing" 
+                          checked={settings.security.geofencing}
+                          onCheckedChange={(checked) => handleSettingChange('security', 'geofencing', checked)}
+                        />
+                      </div>
+                      
+                      {settings.security.geofencing && (
+                        <div className="mt-2 space-y-2">
+                          <Label htmlFor="allowedCountries" className="text-sm">Allowed Regions (ISO-3166 Codes)</Label>
+                          <p className="text-xs text-gray-500 mb-1">Enter comma-separated country codes</p>
+                          <Input 
+                            id="allowedCountries" 
+                            placeholder="US,CA,GB" 
+                            value={settings.security.allowedCountries}
+                            onChange={(e) => handleSettingChange('security', 'allowedCountries', e.target.value)}
                           />
                         </div>
                       )}
@@ -727,6 +781,14 @@ export default function Admin() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="white-label" className="mt-6">
+              <TenantConfig />
+            </TabsContent>
+
+            <TabsContent value="support-tickets" className="mt-6">
+              <SupportTickets />
             </TabsContent>
           </Tabs>
         </div>

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { DollarSign, TrendingUp, CreditCard, AlertCircle } from 'lucide-react'
 import { formatCurrency, formatNumber, formatPercentage, formatDateTime } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { DateRangePicker } from '@/components/date-range-picker'
+import { DatePickerWithRange } from '@/components/ui/date-range-picker'
 import { addDays, addMonths, addYears, format, startOfDay, startOfMonth, startOfWeek, startOfYear, subDays, subMonths, subWeeks, subYears } from 'date-fns'
 import { 
   LineChart, 
@@ -206,7 +206,6 @@ export default function PaymentsPage() {
       setError(null)
       try {
         await Promise.all([
-          fetchMetrics(),
           fetchTransactions(),
           fetchReports()
         ])
@@ -346,9 +345,9 @@ export default function PaymentsPage() {
             </SelectContent>
           </Select>
           {timeRange === 'custom' && (
-            <DateRangePicker
-              date={dateRange}
-              onDateChange={(range) => setDateRange(range)}
+            <DatePickerWithRange
+              value={dateRange as any}
+              onChange={(range: any) => setDateRange(range)}
             />
           )}
         </div>
