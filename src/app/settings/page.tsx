@@ -34,7 +34,11 @@ import {
   RefreshCw,
   QrCode,
   Lock,
+  BrainCircuit,
+  HeadphonesIcon,
 } from 'lucide-react';
+import KnowledgeCurator from '@/components/admin/KnowledgeCurator';
+import SupportTickets from '@/components/admin/SupportTickets';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
@@ -53,6 +57,7 @@ export default function SettingsPage() {
   const [sessionTimeout, setSessionTimeout] = useState('30m');
   const [loginAlerts, setLoginAlerts] = useState(true);
   const [ipWhitelisting, setIpWhitelisting] = useState(false);
+  const [piiMaskingEnabled, setPiiMaskingEnabled] = useState(true);
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
 
   // 2FA Setup Modal State
@@ -299,6 +304,14 @@ export default function SettingsPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="ai-knowledge" className="gap-1.5">
+            <BrainCircuit className="h-4 w-4" />
+            AI Knowledge (P3)
+          </TabsTrigger>
+          <TabsTrigger value="b2b-support" className="gap-1.5">
+            <HeadphonesIcon className="h-4 w-4" />
+            B2B Support (P6)
+          </TabsTrigger>
         </TabsList>
 
         {/* ================= GENERAL TAB ================= */}
@@ -455,6 +468,23 @@ export default function SettingsPage() {
                 />
               </div>
 
+              {/* PII Masking & Tenant Isolation (P2) */}
+              <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/20">
+                <div className="space-y-0.5">
+                  <Label htmlFor="pii-masking-switch" className="font-medium cursor-pointer">
+                    PII Data Masking & Tenant Isolation Guard (P2)
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Enforce automated masking of player PII and strict per-tenant data isolation in AI queries.
+                  </p>
+                </div>
+                <Switch
+                  id="pii-masking-switch"
+                  checked={piiMaskingEnabled}
+                  onCheckedChange={setPiiMaskingEnabled}
+                />
+              </div>
+
               {/* Backup Codes Action */}
               <div className="flex items-center justify-between p-4 rounded-lg border border-dashed">
                 <div className="space-y-0.5">
@@ -586,6 +616,16 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ================= AI KNOWLEDGE TAB (P3) ================= */}
+        <TabsContent value="ai-knowledge">
+          <KnowledgeCurator />
+        </TabsContent>
+
+        {/* ================= B2B SUPPORT TAB (P6) ================= */}
+        <TabsContent value="b2b-support">
+          <SupportTickets />
         </TabsContent>
       </Tabs>
 

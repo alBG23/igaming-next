@@ -14,6 +14,8 @@
     "dev:clean": "npm run clean && npm run dev",
     "mcp": "ts-node src/server/mcp-server.ts",
     "get-schema": "ts-node src/scripts/get-schema.ts",
+    "test:e2e": "playwright test",
+    "parse:priorities": "python3 ../scripts/pdf_to_features_json.py",
     "prepare": "husky install || true"
   },
   "dependencies": {
@@ -31,6 +33,7 @@
     "@tremor/react": "^3.18.7",
     "@types/dotenv": "^6.1.1",
     "@types/socket.io": "^3.0.1",
+    "autoprefixer": "^10.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -43,19 +46,19 @@
     "next": "14.1.0",
     "next-themes": "^0.4.6",
     "pg": "^8.14.1",
+    "postcss": "^8",
     "react": "^18",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18",
     "recharts": "^2.15.2",
     "socket.io": "^4.8.1",
     "tailwind-merge": "^2.6.0",
-    "tailwindcss-animate": "^1.0.7",
-    "autoprefixer": "^10.0.1",
-    "postcss": "^8",
-    "tailwindcss": "^3.3.0"
+    "tailwindcss": "^3.3.0",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@modelcontextprotocol/server-postgres": "^0.6.2",
+    "@playwright/test": "^1.64.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
     "@types/node": "^20",

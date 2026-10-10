@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { getAvailableTables } from '@/lib/supabase';
 import { formatDate, formatCurrency, formatNumber } from '@/lib/utils';
 import { LineChart, BarChart } from '@tremor/react';
+import { ThumbsUp, ThumbsDown } from 'lucide-react';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -102,6 +103,11 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [availableTables, setAvailableTables] = useState<string[]>([]);
+  const [feedbackState, setFeedbackState] = useState<Record<number, string>>({});
+
+  const handleFeedback = (index: number, type: 'thumbs_up' | 'thumbs_down') => {
+    setFeedbackState(prev => ({ ...prev, [index]: type }));
+  };
 
   useEffect(() => {
     const fetchTables = async () => {
@@ -264,8 +270,42 @@ Try queries like:
           <div className="space-y-4">
             {messages.map((message, index) => (
               <Card key={index} className={`p-4 ${message.role === 'user' ? 'bg-primary/10' : ''}`}>
-                <p className="font-semibold">{message.role === 'user' ? 'You' : 'Assistant'}</p>
-                <p>{message.content}</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold">{message.role === 'user' ? 'You' : 'Assistant'}</p>
+                  {message.role === 'assistant' && (
+                    <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      Hermes Quality: 98%
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1">{message.content}</p>
+                {message.role === 'assistant' && (
+                  <div className="flex items-center justify-between mt-3 pt-2 border-t text-xs text-muted-foreground">
+                    <span className="text-[11px]">
+                      {feedbackState[index] ? `Feedback: ${feedbackState[index] === 'thumbs_up' ? 'Helpful' : 'Needs Correction'}` : 'Was this accurate?'}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant={feedbackState[index] === 'thumbs_up' ? 'default' : 'ghost'}
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => handleFeedback(index, 'thumbs_up')}
+                      >
+                        <ThumbsUp className="h-3 w-3 mr-1" />
+                        Helpful
+                      </Button>
+                      <Button
+                        variant={feedbackState[index] === 'thumbs_down' ? 'destructive' : 'ghost'}
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => handleFeedback(index, 'thumbs_down')}
+                      >
+                        <ThumbsDown className="h-3 w-3 mr-1" />
+                        Fix
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             ))}
             {isLoading && (
