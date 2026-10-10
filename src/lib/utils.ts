@@ -26,7 +26,8 @@ export function formatPercentage(num: number): string {
   }).format(num / 100)
 }
 
-export function formatDate(date: string | Date): string {
+export function formatDate(date?: string | Date | null): string {
+  if (!date) return '—'
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -34,7 +35,8 @@ export function formatDate(date: string | Date): string {
   })
 }
 
-export function formatDateTime(date: string | Date): string {
+export function formatDateTime(date?: string | Date | null): string {
+  if (!date) return '—'
   return new Date(date).toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',

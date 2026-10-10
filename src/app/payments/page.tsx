@@ -176,16 +176,29 @@ export default function PaymentsPage() {
   const [reports, setReports] = useState<Report[]>([])
   const [selectedReport, setSelectedReport] = useState<string | null>(null)
   const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>('thisMonth')
-  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>(undefined)
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [selectedView, setSelectedView] = useState<'total' | 'country' | 'payment' | 'device'>('total')
   const [date, setDate] = useState<DateRange | undefined>({
     from: addDays(new Date(), -7),
     to: new Date(),
   })
 
-  const currentRange = timeRange === 'custom' && dateRange 
+  const currentRange = timeRange === 'custom' && dateRange?.from && dateRange?.to
     ? { start: dateRange.from, end: dateRange.to }
     : TIME_RANGES[timeRange].getRange()
+
+  const fetchMetrics = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payments_view')
+        .select('*')
+        .gte('created_at', date?.from?.toISOString() || '')
+        .lte('created_at', date?.to?.toISOString() || '')
+      if (error) throw error
+    } catch (err) {
+      console.error('Error fetching metrics:', err)
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -208,64 +221,62 @@ export default function PaymentsPage() {
   }, [activeTab, timeRange, dateRange])
 
   useEffect(() => {
-    async function fetchMetrics() {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        // Use the imported supabase client
-        const { data, error } = await supabase
-          .from('payments_view')
-          .select('*')
-          .gte('created_at', date?.from?.toISOString() || '')
-          .lte('created_at', date?.to?.toISOString() || '')
-        
-        if (error) throw error
-        
-        // Process the data and update metrics
-        // ... rest of your metrics calculation logic ...
-        
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
-        console.error('Error fetching metrics:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchMetrics()
   }, [date])
 
   const fetchTransactions = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: payments, error } = await supabase
         .from('payments_view')
-        .select(`
-          *,
-          user:users_view(*),
-          affiliate:affiliates_view(*)
-        `)
+        .select('*')
         .gte('created_at', currentRange.start.toISOString())
         .lte('created_at', currentRange.end.toISOString())
         .order('created_at', { ascending: false })
+        .limit(100)
 
-      if (error) throw error
+      if (error) {
+        console.warn('Error fetching transactions (using fallback empty list):', error.message || error)
+        setTransactions([])
+        return
+      }
 
-      setTransactions(data.map(payment => ({
-        id: payment.id,
-        player: payment.user?.email || 'Unknown',
-        type: payment.action,
-        amount: payment.amount_cents / 100,
-        currency: payment.currency,
-        method: payment.payment_system,
-        status: payment.success ? 'success' : payment.decline_reason ? 'failed' : 'pending',
-        declineReason: payment.decline_reason,
-        affiliate: payment.affiliate?.name,
-        createdAt: payment.created_at
-      })))
+      // Fetch user emails for the transactions
+      const userIds = Array.from(new Set((payments || []).map((p: any) => p.user_id).filter(Boolean)))
+      const userMap = new Map<number | string, { email?: string }>()
+
+      if (userIds.length > 0) {
+        try {
+          const { data: users } = await supabase
+            .from('users_view')
+            .select('id, email')
+            .in('id', userIds)
+
+          if (users) {
+            users.forEach((u: any) => userMap.set(u.id, u))
+          }
+        } catch (uErr) {
+          console.warn('Error fetching users for transactions:', uErr)
+        }
+      }
+
+      setTransactions((payments || []).map((payment: any) => {
+        const user = userMap.get(payment.user_id)
+        return {
+          id: String(payment.id),
+          player: user?.email || (payment.user_id ? `User #${payment.user_id}` : 'Unknown'),
+          type: payment.action,
+          amount: (payment.amount_cents || 0) / 100,
+          currency: payment.currency,
+          method: payment.payment_system || payment.psp_system || 'Unknown',
+          status: payment.success ? 'success' : payment.decline_reason ? 'failed' : 'pending',
+          declineReason: payment.decline_reason,
+          affiliate: payment.affiliate?.name,
+          createdAt: payment.created_at
+        }
+      }))
     } catch (err) {
-      console.error('Error fetching transactions:', err)
-      throw err
+      console.warn('Error fetching transactions:', err)
+      setTransactions([])
     }
   }
 
@@ -278,18 +289,22 @@ export default function PaymentsPage() {
         .lte('date', currentRange.end.toISOString())
         .order('date', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.warn('Error fetching reports (using fallback empty list):', error.message || error)
+        setReports([])
+        return
+      }
 
-      setReports(data.map(report => ({
-        id: report.id,
+      setReports((data || []).map((report: any) => ({
+        id: String(report.id),
         date: report.date,
-        deposits: report.deposits_sum / 100,
-        withdrawals: report.cashouts_sum / 100,
+        deposits: (report.deposits_sum || 0) / 100,
+        withdrawals: (report.cashouts_sum || 0) / 100,
         successRate: report.deposits_count ? (report.first_deposits_count / report.deposits_count) * 100 : 0
       })))
     } catch (err) {
-      console.error('Error fetching reports:', err)
-      throw err
+      console.warn('Error fetching reports:', err)
+      setReports([])
     }
   }
 

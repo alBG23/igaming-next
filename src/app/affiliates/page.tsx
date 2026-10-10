@@ -39,7 +39,9 @@ export default function AffiliatesPage() {
           .select('partner_id, partner_income')
           .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
 
-        if (incomeError) throw incomeError
+        if (incomeError) {
+          console.warn('Supabase income_reports query warning (using fallback):', incomeError.message || incomeError)
+        }
 
         // Get traffic reports
         const { data: trafficData, error: trafficError } = await supabase
@@ -47,17 +49,23 @@ export default function AffiliatesPage() {
           .select('*')
           .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
 
-        if (trafficError) throw trafficError
+        if (trafficError) {
+          console.warn('Supabase traffic_reports query warning (using fallback):', trafficError.message || trafficError)
+        }
 
         // Aggregate data by partner
         const partnerMetrics = new Map<string, AffiliateMetrics>()
 
         // Process income data
-        incomeData.forEach(report => {
-          if (!partnerMetrics.has(report.partner_id)) {
-            partnerMetrics.set(report.partner_id, {
-              partner_id: report.partner_id,
-              partner_name: `Partner ${report.partner_id}`,
+        const incomeList = Array.isArray(incomeData) ? incomeData : []
+        const trafficList = Array.isArray(trafficData) ? trafficData : []
+
+        incomeList.forEach(report => {
+          const partnerKey = String(report.partner_id)
+          if (!partnerMetrics.has(partnerKey)) {
+            partnerMetrics.set(partnerKey, {
+              partner_id: partnerKey,
+              partner_name: `Partner ${partnerKey}`,
               total_income: 0,
               traffic: {
                 visits: 0,
@@ -74,16 +82,17 @@ export default function AffiliatesPage() {
               }
             })
           }
-          const metrics = partnerMetrics.get(report.partner_id)!
-          metrics.total_income += report.partner_income
+          const metrics = partnerMetrics.get(partnerKey)!
+          metrics.total_income += Number(report.partner_income) || 0
         })
 
         // Process traffic data
-        trafficData.forEach(report => {
-          if (!partnerMetrics.has(report.foreign_partner_id)) {
-            partnerMetrics.set(report.foreign_partner_id, {
-              partner_id: report.foreign_partner_id,
-              partner_name: `Partner ${report.foreign_partner_id}`,
+        trafficList.forEach(report => {
+          const partnerKey = String(report.foreign_partner_id)
+          if (!partnerMetrics.has(partnerKey)) {
+            partnerMetrics.set(partnerKey, {
+              partner_id: partnerKey,
+              partner_name: `Partner ${partnerKey}`,
               total_income: 0,
               traffic: {
                 visits: 0,
@@ -100,7 +109,7 @@ export default function AffiliatesPage() {
               }
             })
           }
-          const metrics = partnerMetrics.get(report.foreign_partner_id)!
+          const metrics = partnerMetrics.get(partnerKey)!
           metrics.traffic.visits += report.visits
           metrics.traffic.clicks += report.clicks
           metrics.traffic.registrations += report.registrations_count

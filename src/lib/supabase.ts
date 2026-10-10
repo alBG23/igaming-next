@@ -1,9 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 
 // Validate environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 console.log('=== Supabase Configuration ===')
 console.log('Supabase URL:', supabaseUrl)
@@ -19,7 +19,7 @@ if (!supabaseAnonKey) {
 }
 
 // Create a single supabase client for interacting with your database
-const supabase = createClient<Database>(
+const supabase = createSupabaseClient<Database>(
   supabaseUrl,
   supabaseAnonKey,
   {
@@ -33,6 +33,7 @@ const supabase = createClient<Database>(
   }
 )
 
+export const createClient = () => supabase
 export { supabase }
 
 // Test the connection with a simple query to users_view
@@ -130,9 +131,9 @@ export async function getDashboardMetrics() {
       .from('casino_games_view')
       .select(`
         created_at,
-        bet_amount,
-        win_amount,
-        user_id
+        bets_sum,
+        payoff_sum,
+        account_id
       `)
       .gte('created_at', thirtyDaysAgoStr)
       .order('created_at', { ascending: false });
@@ -200,8 +201,8 @@ function processMetrics(payments: any[], games: any[]) {
       };
     }
 
-    const betAmount = Number(game.bet_amount) || 0;
-    const winAmount = Number(game.win_amount) || 0;
+    const betAmount = Number(game.bets_sum ?? game.bet_amount) || 0;
+    const winAmount = Number(game.payoff_sum ?? game.win_amount) || 0;
     dailyMetrics[date].ggr += betAmount - winAmount;
   });
 
@@ -267,24 +268,31 @@ export async function getCasinoGamesData({
   try {
     const offset = (page - 1) * pageSize;
     let query = supabase
-      .from('game_sessions')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .gte('created_at', startDate)
-      .lte('created_at', endDate);
+      .from('casino_games_view')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false });
 
-    const { data, error } = await query.range(offset, offset + pageSize - 1);
-    const countQuery = await query.select('id');
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+
+    const { data, error, count } = await query.range(offset, offset + pageSize - 1);
 
     if (error) throw error;
 
     return {
       data: data?.map(session => ({
         ...session,
-        bet_amount_cents: Number(session.bet_amount_cents),
-        win_amount_cents: Number(session.win_amount_cents)
+        bets_sum: Number(session.bets_sum || 0),
+        payoff_sum: Number(session.payoff_sum || 0),
+        jackpot_win_cents: Number(session.jackpot_win_cents || 0),
+        bet_amount_cents: Number(session.bets_sum ?? session.bet_amount_cents ?? 0),
+        win_amount_cents: Number(session.payoff_sum ?? session.win_amount_cents ?? 0)
       })) || [],
-      count: countQuery.data?.length || 0,
+      count: count ?? 0,
       error: null
     };
   } catch (error) {
@@ -350,8 +358,8 @@ export async function getPaymentsData({
   try {
     const offset = (page - 1) * pageSize;
     let query = supabase
-      .from('payments')
-      .select('*')
+      .from('payments_view')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
     if (startDate) {
@@ -370,8 +378,7 @@ export async function getPaymentsData({
       query = query.eq('currency', filters.currency);
     }
 
-    const { data, error } = await query.range(offset, offset + pageSize - 1);
-    const countQuery = await query.select('id');
+    const { data, error, count } = await query.range(offset, offset + pageSize - 1);
 
     if (error) throw error;
 
@@ -380,7 +387,7 @@ export async function getPaymentsData({
         ...payment,
         amount_cents: Number(payment.amount_cents)
       })) || [],
-      count: countQuery.data?.length || 0,
+      count: count ?? 0,
       error: null
     };
   } catch (error) {

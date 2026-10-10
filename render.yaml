@@ -14,7 +14,10 @@ services:
         value: production
       - key: NEXT_PUBLIC_API_URL
         value: https://igaming-backend-dev.onrender.com
+      - key: DATABASE_URL
+        sync: false
       - key: NEXT_PUBLIC_SUPABASE_URL
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
         sync: false
+

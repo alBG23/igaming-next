@@ -137,7 +137,7 @@ export default function PlayerValuePage() {
       }>()
 
       // Process payments
-      paymentsData?.forEach(payment => {
+      paymentsData?.forEach((payment: any) => {
         const playerId = payment.user_id
         if (!playerId) return
 
@@ -159,7 +159,7 @@ export default function PlayerValuePage() {
       })
 
       // Process gaming activity
-      gamingData?.forEach(game => {
+      gamingData?.forEach((game: any) => {
         const playerId = game.player_id
         if (!playerId) return
 

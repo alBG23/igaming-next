@@ -50,7 +50,7 @@ export default function CohortsPage() {
       if (cohortError) throw cohortError;
 
       if (cohortData) {
-        const processedCohorts = cohortData.map(item => ({
+        const processedCohorts = cohortData.map((item: any) => ({
           id: item.id,
           cohortDate: item.cohort_date,
           playerCount: item.player_count,
@@ -71,7 +71,7 @@ export default function CohortsPage() {
         setCohorts(processedCohorts);
 
         // Prepare retention trends data
-        const retentionData = processedCohorts.map(cohort => ({
+        const retentionData = processedCohorts.map((cohort: any) => ({
           date: formatDate(cohort.cohortDate),
           "Day 1": cohort.retentionRates.day1,
           "Day 7": cohort.retentionRates.day7,
@@ -82,7 +82,7 @@ export default function CohortsPage() {
         setRetentionTrends(retentionData);
 
         // Prepare value trends data
-        const valueData = processedCohorts.map(cohort => ({
+        const valueData = processedCohorts.map((cohort: any) => ({
           date: formatDate(cohort.cohortDate),
           "Avg First Deposit": cohort.metrics.avgFirstDeposit,
           "Avg Lifetime Value": cohort.metrics.avgLifetimeValue

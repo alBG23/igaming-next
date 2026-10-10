@@ -35,7 +35,9 @@ export default function AcquisitionPage() {
           .select('id, created_at, last_sign_in_at')
           .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
 
-        if (usersError) throw usersError
+        if (usersError) {
+          console.warn('Supabase users_view query warning (using fallback):', usersError.message || usersError)
+        }
 
         // Get first deposits
         const { data: depositsData, error: depositsError } = await supabase
@@ -44,7 +46,9 @@ export default function AcquisitionPage() {
           .eq('action', 'deposit')
           .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
 
-        if (depositsError) throw depositsError
+        if (depositsError) {
+          console.warn('Supabase payments_view query warning (using fallback):', depositsError.message || depositsError)
+        }
 
         // Get traffic sources
         const { data: trafficData, error: trafficError } = await supabase
@@ -52,17 +56,23 @@ export default function AcquisitionPage() {
           .select('*')
           .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
 
-        if (trafficError) throw trafficError
+        if (trafficError) {
+          console.warn('Supabase traffic_reports query warning (using fallback):', trafficError.message || trafficError)
+        }
 
         // Calculate metrics
-        const totalUsers = usersData.length
-        const newUsers = usersData.filter(u => 
+        const usersList = Array.isArray(usersData) ? usersData : []
+        const depositsList = Array.isArray(depositsData) ? depositsData : []
+        const trafficList = Array.isArray(trafficData) ? trafficData : []
+
+        const totalUsers = usersList.length
+        const newUsers = usersList.filter((u: any) => 
           new Date(u.created_at) >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
         ).length
 
         // Find first deposits
         const firstDeposits = new Map<number, number>()
-        depositsData.forEach(deposit => {
+        depositsList.forEach((deposit: any) => {
           if (!firstDeposits.has(deposit.user_id)) {
             firstDeposits.set(deposit.user_id, deposit.amount_cents)
           }
@@ -81,8 +91,8 @@ export default function AcquisitionPage() {
           ftd: number
         }>()
 
-        trafficData.forEach(report => {
-          const source = report.foreign_partner_id
+        trafficList.forEach((report: any) => {
+          const source = report.foreign_partner_id || 'Direct'
           if (!sourceMetrics.has(source)) {
             sourceMetrics.set(source, {
               source,
@@ -92,13 +102,13 @@ export default function AcquisitionPage() {
             })
           }
           const metrics = sourceMetrics.get(source)!
-          metrics.users += report.registrations_count
-          metrics.deposits += report.deposits_count
-          metrics.ftd += report.ftd_count
+          metrics.users += Number(report.registrations_count) || 0
+          metrics.deposits += Number(report.deposits_count) || 0
+          metrics.ftd += Number(report.ftd_count) || 0
         })
 
         // Calculate conversion rates for each source
-        const sources = Array.from(sourceMetrics.values()).map(source => ({
+        const sources = Array.from(sourceMetrics.values()).map((source: any) => ({
           ...source,
           conversion_rate: source.users > 0 ? (source.ftd / source.users) * 100 : 0
         }))
@@ -108,7 +118,7 @@ export default function AcquisitionPage() {
           new_users: newUsers,
           first_deposits: ftdCount,
           ftd_rate: newUsers > 0 ? (ftdCount / newUsers) * 100 : 0,
-          avg_first_deposit,
+          avg_first_deposit: avgFirstDeposit,
           sources
         })
       } catch (err) {

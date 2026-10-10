@@ -33,7 +33,9 @@ export default function CohortPage() {
           .select('id, created_at, last_sign_in_at')
           .gte('created_at', sixMonthsAgo.toISOString())
 
-        if (usersError) throw usersError
+        if (usersError) {
+          console.warn('Supabase users_view query warning (using fallback):', usersError.message || usersError)
+        }
 
         // Get payment data
         const { data: paymentsData, error: paymentsError } = await supabase
@@ -42,7 +44,12 @@ export default function CohortPage() {
           .eq('action', 'deposit')
           .gte('created_at', sixMonthsAgo.toISOString())
 
-        if (paymentsError) throw paymentsError
+        if (paymentsError) {
+          console.warn('Supabase payments_view query warning (using fallback):', paymentsError.message || paymentsError)
+        }
+
+        const safeUsersData = Array.isArray(usersData) ? usersData : []
+        const safePaymentsData = Array.isArray(paymentsData) ? paymentsData : []
 
         // Group users by cohort (month of registration)
         const cohorts = new Map<string, {
@@ -51,7 +58,8 @@ export default function CohortPage() {
           totalRevenue: number
         }>()
 
-        usersData.forEach(user => {
+        safeUsersData.forEach(user => {
+          if (!user.created_at) return
           const cohortMonth = new Date(user.created_at).toISOString().slice(0, 7) // YYYY-MM
           if (!cohorts.has(cohortMonth)) {
             cohorts.set(cohortMonth, {
@@ -77,13 +85,13 @@ export default function CohortPage() {
         })
 
         // Calculate revenue per cohort
-        paymentsData.forEach(payment => {
-          const user = usersData.find(u => u.id === payment.user_id)
-          if (user) {
+        safePaymentsData.forEach(payment => {
+          const user = safeUsersData.find(u => u.id === payment.user_id)
+          if (user && user.created_at) {
             const cohortMonth = new Date(user.created_at).toISOString().slice(0, 7)
             const cohort = cohorts.get(cohortMonth)
             if (cohort) {
-              cohort.totalRevenue += payment.amount_cents
+              cohort.totalRevenue += payment.amount_cents || 0
             }
           }
         })
@@ -99,8 +107,8 @@ export default function CohortPage() {
             month,
             users: data.users,
             retention,
-            ltv: data.totalRevenue / 100 / data.users, // Convert cents to currency
-            arpu: data.totalRevenue / 100 / data.users // Average Revenue Per User
+            ltv: data.users > 0 ? (data.totalRevenue / 100 / data.users) : 0, // Convert cents to currency
+            arpu: data.users > 0 ? (data.totalRevenue / 100 / data.users) : 0 // Average Revenue Per User
           }
         })
 

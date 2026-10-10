@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -104,119 +104,120 @@ const TIME_RANGES = {
 
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>('thisMonth')
-  const [customRange, setCustomRange] = useState<{ start: Date; end: Date }>(TIME_RANGES.custom.getRange())
+  const [customRange, setCustomRange] = useState<{ start: Date; end: Date }>(() => TIME_RANGES.custom.getRange())
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const currentRange = timeRange === 'custom' ? customRange : TIME_RANGES[timeRange].getRange()
+  const currentRange = useMemo(() => {
+    return timeRange === 'custom' ? customRange : TIME_RANGES[timeRange].getRange()
+  }, [timeRange, customRange])
+
+  const startKey = currentRange.start.getTime()
+  const endKey = currentRange.end.getTime()
 
   useEffect(() => {
+    let isCancelled = false
+    const abortController = new AbortController()
+
     async function fetchMetrics() {
       try {
         setLoading(true)
         setError(null)
-        console.log('Fetching metrics for range:', {
-          start: currentRange.start.toISOString(),
-          end: currentRange.end.toISOString()
-        })
 
-        // Get the latest available data if no data in the selected range
-        const { data: latestRevenue, error: latestError } = await supabase
-          .from('revenue_metrics')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(1)
+        const adjustedStart = currentRange.start
+        const adjustedEnd = currentRange.end
 
-        if (latestError) {
-          console.error('Error fetching latest revenue:', latestError)
-          throw latestError
-        }
-
-        if (!latestRevenue || latestRevenue.length === 0) {
-          throw new Error('No revenue data available')
-        }
-
-        const latestDate = new Date(latestRevenue[0].created_at)
-        console.log('Latest available data date:', latestDate)
-
-        // Adjust the date range to include the latest available data
-        const adjustedStart = new Date(Math.min(currentRange.start.getTime(), latestDate.getTime()))
-        const adjustedEnd = new Date(Math.min(currentRange.end.getTime(), latestDate.getTime()))
-
-        console.log('Adjusted date range:', {
+        console.log('Query date range:', {
           start: adjustedStart.toISOString(),
           end: adjustedEnd.toISOString()
         })
 
-        // Get active users
-        console.log('Fetching active users...')
-        const { data: usersData, error: usersError } = await supabase
-          .from('users_view')
-          .select('id, last_sign_in_at')
-          .gte('last_sign_in_at', adjustedStart.toISOString())
-          .lte('last_sign_in_at', adjustedEnd.toISOString())
+        // Fetch users, payments, and games concurrently with abortSignal
+        const [usersRes, paymentsRes, gamesRes] = await Promise.all([
+          supabase
+            .from('users_view')
+            .select('id', { count: 'exact' })
+            .gte('last_sign_in_at', adjustedStart.toISOString())
+            .lte('last_sign_in_at', adjustedEnd.toISOString())
+            .limit(1)
+            .abortSignal(abortController.signal)
+            .then(res => ({ count: res.count ?? 0, error: res.error }))
+            .catch(err => {
+              if (err?.name === 'AbortError') return { count: 0, error: null }
+              console.warn('Failed to fetch active users:', err)
+              return { count: 0, error: err }
+            }),
 
-        if (usersError) {
-          console.error('Error fetching users:', usersError)
-          throw usersError
+          supabase
+            .from('payments_view')
+            .select('success, amount_cents, created_at, action')
+            .gte('created_at', adjustedStart.toISOString())
+            .lte('created_at', adjustedEnd.toISOString())
+            .order('created_at', { ascending: false })
+            .limit(5000)
+            .abortSignal(abortController.signal)
+            .then(res => ({ data: res.data || [], error: res.error }))
+            .catch(err => {
+              if (err?.name === 'AbortError') return { data: [], error: null }
+              console.warn('Failed to fetch payments:', err)
+              return { data: [], error: err }
+            }),
+
+          supabase
+            .from('casino_games_view')
+            .select('bets_sum, payoff_sum, created_at')
+            .gte('created_at', adjustedStart.toISOString())
+            .lte('created_at', adjustedEnd.toISOString())
+            .order('created_at', { ascending: false })
+            .limit(5000)
+            .abortSignal(abortController.signal)
+            .then(res => ({ data: res.data || [], error: res.error }))
+            .catch(err => {
+              if (err?.name === 'AbortError') return { data: [], error: null }
+              console.warn('Failed to fetch game metrics:', err)
+              return { data: [], error: err }
+            })
+        ])
+
+        if (isCancelled) return
+
+        if (usersRes.error) {
+          console.warn('users_view query warning:', usersRes.error.message)
         }
-        console.log('Active users fetched:', usersData?.length)
-
-        // Get revenue metrics
-        console.log('Fetching revenue metrics...')
-        const { data: revenueData, error: revenueError } = await supabase
-          .from('revenue_metrics')
-          .select('total_revenue, net_revenue')
-          .gte('created_at', adjustedStart.toISOString())
-          .lte('created_at', adjustedEnd.toISOString())
-          .order('created_at', { ascending: false })
-
-        if (revenueError) {
-          console.error('Error fetching revenue:', revenueError)
-          throw revenueError
+        if (paymentsRes.error) {
+          console.warn('payments_view query warning:', paymentsRes.error.message)
         }
-        console.log('Revenue metrics fetched:', revenueData)
-
-        // Get payment success rate
-        console.log('Fetching payment success rate...')
-        const { data: paymentsData, error: paymentsError } = await supabase
-          .from('payments_view')
-          .select('success, amount_cents, created_at, action')
-          .gte('created_at', adjustedStart.toISOString())
-          .lte('created_at', adjustedEnd.toISOString())
-
-        if (paymentsError) {
-          console.error('Error fetching payments:', paymentsError)
-          throw paymentsError
+        if (gamesRes.error) {
+          console.warn('casino_games_view query warning:', gamesRes.error.message)
         }
-        console.log('Payments fetched:', paymentsData?.length)
 
-        // Get game metrics
-        console.log('Fetching game metrics...')
-        const { data: gamesData, error: gamesError } = await supabase
-          .from('casino_games_view')
-          .select('bet_amount, win_amount, created_at')
-          .gte('created_at', adjustedStart.toISOString())
-          .lte('created_at', adjustedEnd.toISOString())
+        const activeUsers = usersRes.count || 0
+        const paymentsData = paymentsRes.data || []
+        const gamesData = gamesRes.data || []
 
-        if (gamesError) {
-          console.error('Error fetching games:', gamesError)
-          throw gamesError
-        }
-        console.log('Games fetched:', gamesData?.length)
+        console.log('Metrics fetched:', {
+          activeUsers,
+          paymentsCount: paymentsData.length,
+          gamesCount: gamesData.length
+        })
 
         // Calculate metrics
-        const activeUsers = usersData?.length || 0
-        const totalRevenue = revenueData?.[0]?.total_revenue || 0
-        const netRevenue = revenueData?.[0]?.net_revenue || 0
-
-        const successfulPayments = paymentsData?.filter(p => p.success).length || 0
-        const totalPayments = paymentsData?.length || 0
+        const successfulPayments = paymentsData.filter(p => p.success).length
+        const totalPayments = paymentsData.length
         const successRate = totalPayments > 0 ? (successfulPayments / totalPayments) * 100 : 0
 
-        const totalAmount = paymentsData?.reduce((sum, p) => sum + (p.amount_cents || 0), 0) || 0
+        const totalAmount = paymentsData.reduce((sum, p) => sum + (p.amount_cents || 0), 0)
         const avgTransactionValue = totalPayments > 0 ? totalAmount / totalPayments / 100 : 0
+
+        // Derive revenue from payments
+        const depositsSum = (paymentsData.filter(p => p.action === 'deposit' && p.success)
+          .reduce((sum, p) => sum + (p.amount_cents || 0), 0)) / 100
+        const withdrawalsSum = (paymentsData.filter(p => p.action === 'withdrawal' && p.success)
+          .reduce((sum, p) => sum + (p.amount_cents || 0), 0)) / 100
+
+        const totalRevenue = depositsSum
+        const netRevenue = depositsSum - withdrawalsSum
 
         // Calculate daily trends
         const dailyTrends = new Map<string, {
@@ -227,7 +228,8 @@ export default function DashboardPage() {
         }>()
 
         // Process payments for daily trends
-        paymentsData?.forEach(payment => {
+        paymentsData.forEach(payment => {
+          if (!payment.created_at) return
           const date = format(new Date(payment.created_at), 'yyyy-MM-dd')
           if (!dailyTrends.has(date)) {
             dailyTrends.set(date, {
@@ -238,15 +240,17 @@ export default function DashboardPage() {
             })
           }
           const trend = dailyTrends.get(date)!
-          if (payment.action === 'deposit') {
-            trend.deposits += payment.amount_cents / 100
-          } else if (payment.action === 'withdrawal') {
-            trend.withdrawals += payment.amount_cents / 100
+          const amt = (payment.amount_cents || 0) / 100
+          if (payment.action === 'deposit' && payment.success) {
+            trend.deposits += amt
+          } else if (payment.action === 'withdrawal' && payment.success) {
+            trend.withdrawals += amt
           }
         })
 
         // Process games for daily trends
-        gamesData?.forEach(game => {
+        gamesData.forEach((game: any) => {
+          if (!game.created_at) return
           const date = format(new Date(game.created_at), 'yyyy-MM-dd')
           if (!dailyTrends.has(date)) {
             dailyTrends.set(date, {
@@ -257,10 +261,10 @@ export default function DashboardPage() {
             })
           }
           const trend = dailyTrends.get(date)!
-          const betAmount = Number(game.bet_amount) || 0
-          const winAmount = Number(game.win_amount) || 0
+          const betAmount = (Number(game.bets_sum ?? game.bet_amount) || 0) / 100
+          const winAmount = (Number(game.payoff_sum ?? game.win_amount) || 0) / 100
           trend.ggr += betAmount - winAmount
-          trend.ngr += betAmount - winAmount // In a real implementation, subtract bonuses
+          trend.ngr += betAmount - winAmount
         })
 
         const formattedDailyTrends = Array.from(dailyTrends.entries())
@@ -270,37 +274,45 @@ export default function DashboardPage() {
           }))
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-        console.log('Calculated metrics:', {
-          activeUsers,
-          totalRevenue,
-          netRevenue,
-          successRate,
-          avgTransactionValue,
-          dailyTrends: formattedDailyTrends
-        })
-
-        setMetrics({
-          activeUsers,
-          totalRevenue,
-          netRevenue,
-          successRate,
-          avgTransactionValue,
-          dailyTrends: formattedDailyTrends
-        })
+        if (!isCancelled) {
+          setMetrics({
+            activeUsers,
+            totalRevenue,
+            netRevenue,
+            successRate,
+            avgTransactionValue,
+            dailyTrends: formattedDailyTrends
+          })
+        }
       } catch (err) {
         console.error('Error in fetchMetrics:', err)
-        setError(err instanceof Error ? err.message : 'Failed to fetch metrics')
+        if (!isCancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch metrics')
+        }
       } finally {
-        setLoading(false)
+        if (!isCancelled) {
+          setLoading(false)
+        }
       }
     }
 
     fetchMetrics()
-  }, [currentRange])
 
-  if (loading) return <div>Loading...</div>
-  if (error) return <div>Error: {error}</div>
-  if (!metrics) return <div>No data available</div>
+    return () => {
+      isCancelled = true
+      abortController.abort()
+    }
+  }, [timeRange, startKey, endKey])
+
+  if (loading && !metrics) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      </div>
+    )
+  }
+  if (error && !metrics) return <div className="p-6 text-red-500">Error: {error}</div>
+  if (!metrics) return <div className="p-6">No data available</div>
 
   return (
     <div className="p-6">

@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+# Ensure PATH includes standard node/npm locations (Homebrew, nvm, /usr/local) for GUI/IDE Git clients on macOS
+export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin"
 
-npm run lint 
+npm run lint
