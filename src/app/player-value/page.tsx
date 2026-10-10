@@ -1,11 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { DollarSign, TrendingUp, Users, Activity, Search, Filter, Clock, AlertCircle } from 'lucide-react'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { supabase, testSupabaseConnection } from "@/lib/supabase"
@@ -14,6 +19,26 @@ import { DateRange } from 'react-day-picker'
 
 import { BarChart, DonutChart } from '@tremor/react'
 import { formatCurrency, formatPercentage } from '@/lib/utils'
+
+interface ValuedPlayer {
+  id: number
+  name: string
+  tier: 'VIP' | 'Gold' | 'Silver' | 'Bronze'
+  lifetimeValue: number
+  monthlyValue: number
+  acquisitionCost: number
+  roi: number
+}
+
+const DEFAULT_VALUED_PLAYERS: ValuedPlayer[] = [
+  { id: 101, name: 'Maximilian Vance', tier: 'VIP', lifetimeValue: 24500, monthlyValue: 3200, acquisitionCost: 450, roi: 5444 },
+  { id: 102, name: 'Elena Rostova', tier: 'Gold', lifetimeValue: 12800, monthlyValue: 1650, acquisitionCost: 320, roi: 4000 },
+  { id: 103, name: 'Marcus Brody', tier: 'Silver', lifetimeValue: 5400, monthlyValue: 720, acquisitionCost: 210, roi: 2571 },
+  { id: 104, name: 'Aria Montgomery', tier: 'Gold', lifetimeValue: 9800, monthlyValue: 1100, acquisitionCost: 290, roi: 3379 },
+  { id: 105, name: 'Lucas Sterling', tier: 'VIP', lifetimeValue: 31200, monthlyValue: 4100, acquisitionCost: 500, roi: 6240 },
+  { id: 106, name: 'Chloe Bennett', tier: 'Bronze', lifetimeValue: 1850, monthlyValue: 240, acquisitionCost: 150, roi: 1233 },
+  { id: 107, name: 'David Kim', tier: 'Silver', lifetimeValue: 4200, monthlyValue: 510, acquisitionCost: 190, roi: 2210 },
+]
 
 interface PlayerValueMetrics {
   avg_lifetime_value: number
@@ -60,6 +85,8 @@ const valueCategories = {
 export default function PlayerValuePage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [searchQuery, setSearchQuery] = useState('')
+  const [tierFilter, setTierFilter] = useState('All')
+  const [valuedPlayers, setValuedPlayers] = useState<ValuedPlayer[]>(DEFAULT_VALUED_PLAYERS)
   const [metrics, setMetrics] = useState<PlayerValueMetrics>(fallbackMetrics)
   const [chartData, setChartData] = useState(fallbackChartData)
   const [loading, setLoading] = useState(true)
@@ -67,6 +94,17 @@ export default function PlayerValuePage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [segments, setSegments] = useState<PlayerSegment[]>([])
   const [distributionData, setDistributionData] = useState<any[]>([])
+
+  const filteredValuedPlayers = useMemo(() => {
+    return valuedPlayers.filter((p) => {
+      const matchesSearch =
+        searchQuery.trim() === '' ||
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.tier.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesTier = tierFilter === 'All' || p.tier === tierFilter
+      return matchesSearch && matchesTier
+    })
+  }, [valuedPlayers, searchQuery, tierFilter])
 
   // supabase is already imported
 
@@ -379,20 +417,41 @@ export default function PlayerValuePage() {
               </div>
             </TabsContent>
             <TabsContent value="players" className="space-y-4">
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search players..."
+                    placeholder="Search players by name or tier..."
                     className="pl-8"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-                <Button variant="outline">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Filter
-                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <Filter className="h-4 w-4" />
+                      Filter
+                      {tierFilter !== 'All' && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-56 p-3 space-y-2">
+                    <p className="text-xs font-semibold">Filter by VIP Tier</p>
+                    <div className="grid grid-cols-2 gap-1.5 pt-1">
+                      {['All', 'VIP', 'Gold', 'Silver', 'Bronze'].map(t => (
+                        <Button
+                          key={t}
+                          variant={tierFilter === t ? 'default' : 'outline'}
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setTierFilter(t)}
+                        >
+                          {t}
+                        </Button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
               <Card>
                 <CardContent className="p-0">
@@ -409,14 +468,74 @@ export default function PlayerValuePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {/* Players content */}
+                      {filteredValuedPlayers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                            No matching players found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredValuedPlayers.map((player) => (
+                          <TableRow key={player.id}>
+                            <TableCell className="font-mono text-xs">#{player.id}</TableCell>
+                            <TableCell className="font-medium">{player.name}</TableCell>
+                            <TableCell>
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                player.tier === 'VIP' ? 'bg-purple-100 text-purple-800' :
+                                player.tier === 'Gold' ? 'bg-amber-100 text-amber-800' :
+                                player.tier === 'Silver' ? 'bg-slate-200 text-slate-800' :
+                                'bg-stone-100 text-stone-700'
+                              }`}>
+                                {player.tier}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-medium text-emerald-600">
+                              ${player.lifetimeValue.toLocaleString()}
+                            </TableCell>
+                            <TableCell>${player.monthlyValue.toLocaleString()}</TableCell>
+                            <TableCell>${player.acquisitionCost.toLocaleString()}</TableCell>
+                            <TableCell className="font-semibold text-emerald-600">
+                              {player.roi}%
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
               </Card>
             </TabsContent>
             <TabsContent value="trends" className="space-y-4">
-              {/* Trends content */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cohort Value Realization Over Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[350px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorValueTrends" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <Tooltip />
+                        <Area
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#10b981"
+                          fillOpacity={1}
+                          fill="url(#colorValueTrends)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </>

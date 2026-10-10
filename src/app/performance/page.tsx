@@ -1,11 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Users, TrendingUp, DollarSign, Activity, Search, Filter, BarChart2 } from 'lucide-react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 
@@ -58,6 +63,19 @@ const metrics = [
 export default function PerformancePage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'All' | 'On Target' | 'Below Target'>('All')
+
+  const filteredMetrics = useMemo(() => {
+    return metrics.filter((metric) => {
+      const matchesSearch =
+        searchQuery.trim() === '' ||
+        metric.name.toLowerCase().includes(searchQuery.toLowerCase())
+      const isTargetMet = metric.value >= metric.target
+      const status = isTargetMet ? 'On Target' : 'Below Target'
+      const matchesStatus = statusFilter === 'All' || status === statusFilter
+      return matchesSearch && matchesStatus
+    })
+  }, [searchQuery, statusFilter])
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-6 lg:p-8">
@@ -178,9 +196,9 @@ export default function PerformancePage() {
             </div>
           </TabsContent>
           <TabsContent value="metrics" className="space-y-4">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search metrics..."
                   className="pl-8"
@@ -188,10 +206,31 @@ export default function PerformancePage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button variant="outline">
-                <Filter className="mr-2 h-4 w-4" />
-                Filter
-              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filter
+                    {statusFilter !== 'All' && <span className="h-2 w-2 rounded-full bg-primary" />}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-48 p-2.5 space-y-1.5">
+                  <p className="text-xs font-semibold">Filter by Status</p>
+                  <div className="flex flex-col gap-1">
+                    {(['All', 'On Target', 'Below Target'] as const).map((s) => (
+                      <Button
+                        key={s}
+                        variant={statusFilter === s ? 'default' : 'ghost'}
+                        size="sm"
+                        className="text-xs justify-start h-7"
+                        onClick={() => setStatusFilter(s)}
+                      >
+                        {s}
+                      </Button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             <Card>
               <CardContent className="p-0">
@@ -206,25 +245,33 @@ export default function PerformancePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {metrics.map((metric) => (
-                      <TableRow key={metric.id}>
-                        <TableCell>{metric.name}</TableCell>
-                        <TableCell>{metric.value}%</TableCell>
-                        <TableCell>
-                          <span className={metric.trend === 'up' ? 'text-green-600' : 'text-red-600'}>
-                            {metric.change > 0 ? '+' : ''}{metric.change}%
-                          </span>
-                        </TableCell>
-                        <TableCell>{metric.target}%</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            metric.value >= metric.target ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {metric.value >= metric.target ? 'On Target' : 'Below Target'}
-                          </span>
+                    {filteredMetrics.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          No matching metrics found.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      filteredMetrics.map((metric) => (
+                        <TableRow key={metric.id}>
+                          <TableCell className="font-medium">{metric.name}</TableCell>
+                          <TableCell>{metric.value}%</TableCell>
+                          <TableCell>
+                            <span className={metric.trend === 'up' ? 'text-emerald-600 font-medium' : 'text-rose-600 font-medium'}>
+                              {metric.change > 0 ? '+' : ''}{metric.change}%
+                            </span>
+                          </TableCell>
+                          <TableCell>{metric.target}%</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              metric.value >= metric.target ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                            }`}>
+                              {metric.value >= metric.target ? 'On Target' : 'Below Target'}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
