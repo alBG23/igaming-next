@@ -2,8 +2,8 @@ name: Render Free Tier Uptime Hook (100% Uptime)
 
 on:
   schedule:
-    # Runs every 14 minutes (Render free tier sleeps after 15 minutes of idle)
-    - cron: '*/14 * * * *'
+    # Runs every 10 minutes (Render free tier sleeps after 15 minutes of idle)
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 concurrency:
@@ -19,12 +19,12 @@ jobs:
     steps:
       - name: Ping Frontend KeepAlive Endpoint
         run: |
-          echo "Pinging igaming-frontend-dev..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 https://igaming-frontend-dev.onrender.com/api/keepalive || echo "failed")
+          echo "Pinging igaming-frontend-dev keepalive..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://igaming-frontend-dev.onrender.com/api/keepalive || echo "failed")
           echo "Frontend KeepAlive HTTP status: $STATUS"
 
-      - name: Ping Backend Health Endpoint
+      - name: Ping Frontend Health Endpoint
         run: |
-          echo "Pinging igaming-backend-dev..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 https://igaming-backend-dev.onrender.com/api/v1/health || echo "failed")
-          echo "Backend Health HTTP status: $STATUS"
+          echo "Pinging igaming-frontend-dev health..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://igaming-frontend-dev.onrender.com/api/health || echo "failed")
+          echo "Frontend Health HTTP status: $STATUS"
