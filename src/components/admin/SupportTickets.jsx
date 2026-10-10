@@ -23,6 +23,13 @@ export default function SupportTickets() {
     });
   };
 
+  const handleViewTicket = (ticket) => {
+    toast({
+      title: `Ticket Details: ${ticket.id}`,
+      description: `[Tenant ${ticket.tenantId}] ${ticket.title} — Status: ${ticket.status} (${ticket.priority} priority)`
+    });
+  };
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'Open': return <Clock className="h-4 w-4 text-amber-500 mr-2" />;
@@ -86,7 +93,7 @@ export default function SupportTickets() {
                   </TableCell>
                   <TableCell>{new Date(ticket.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>
-                    <Button variant="outline" size="sm">View</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleViewTicket(ticket)}>View</Button>
                   </TableCell>
                 </TableRow>
               ))}

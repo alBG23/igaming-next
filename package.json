@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
-    "check": "npm run check-build",
-    "check-build": "npm run lint && NEXT_DIST_DIR=.next_check next build && rimraf .next_check",
+    "check:interactive": "node scripts/check-interactivity.js",
+    "check": "npm run check:interactive && npm run check-build",
+    "check-build": "npm run check:interactive && npm run lint && NEXT_DIST_DIR=.next_check next build && rimraf .next_check",
     "start": "next start",
     "lint": "next lint",
     "clean": "rimraf .next",

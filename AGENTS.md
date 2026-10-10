@@ -22,3 +22,9 @@
 7. **Always Provide Clickable Markdown Links**:
    - Always format URLs as clickable markdown links, especially [igaming-postgres-dev Dashboard](https://dashboard.render.com/d/dpg-db4cj4ijnfac73av4i40-a) and Render creation pages.
 
+8. **Feature Interactivity & Usability Policy (MANDATORY)**:
+   - All buttons, modals, dropdowns, filters, and controls must have functional handlers and do something when clicked.
+   - Dummy buttons and empty callbacks (`onClick={() => {}}`) are prohibited.
+   - Enforce with `npm run check:interactive` and in `check-build`.
+
+
