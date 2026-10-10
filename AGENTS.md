@@ -13,3 +13,6 @@
 4. **Always Verify URLs Before Providing Links**:
    - Never provide deployment, external, or service links without first checking that they respond and work (no 404s/errors). Only suggest links that are confirmed active.
 
+5. **Cost Optimization & Free Tier Policy**:
+   - Strictly configure cloud services for the Free tier (`plan: free`, 0 cost). Never use paid plans/addons unless requested. Reuse single free database instances via `DATABASE_URL` (`sync: false`).
+
