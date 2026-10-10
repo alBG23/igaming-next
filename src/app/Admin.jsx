@@ -806,7 +806,6 @@ export default function Admin() {
             <TabsContent value="support-tickets" className="mt-6">
               <SupportTickets />
             </TabsContent>
-            </TabsContent>
           </Tabs>
         </div>
       </div>
