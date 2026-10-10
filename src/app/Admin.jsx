@@ -26,13 +26,15 @@ import {
   CheckCircle2,
   PlusCircle,
   RefreshCw,
-  XCircle
+  XCircle,
+  BrainCircuit
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AuthGuard from '../components/auth/AuthGuard';
 import TenantConfig from '../components/admin/TenantConfig';
 import SupportTickets from '../components/admin/SupportTickets';
+import KnowledgeCurator from '../components/admin/KnowledgeCurator';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('users');
@@ -165,7 +167,7 @@ export default function Admin() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full grid grid-cols-6">
+            <TabsList className="w-full grid grid-cols-7">
               <TabsTrigger value="users" className="flex items-center gap-2">
                 <Users className="h-4 w-4" /> Users
               </TabsTrigger>
@@ -177,6 +179,9 @@ export default function Admin() {
               </TabsTrigger>
               <TabsTrigger value="notifications" className="flex items-center gap-2">
                 <Bell className="h-4 w-4" /> Notifications
+              </TabsTrigger>
+              <TabsTrigger value="curator" className="flex items-center gap-2">
+                <BrainCircuit className="h-4 w-4" /> AI Curator
               </TabsTrigger>
               <TabsTrigger value="white-label" className="flex items-center gap-2">
                 <Globe className="h-4 w-4" /> B2B Tenants
@@ -781,6 +786,9 @@ export default function Admin() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+            <TabsContent value="curator" className="mt-6">
+              <KnowledgeCurator />
             </TabsContent>
 
             <TabsContent value="white-label" className="mt-6">
