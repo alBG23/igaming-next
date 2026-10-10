@@ -16,3 +16,6 @@
 5. **Cost Optimization & Free Tier Policy**:
    - Strictly configure cloud services for the Free tier (`plan: free`, 0 cost). Never use paid plans/addons unless requested. Reuse single free database instances via `DATABASE_URL` (`sync: false`).
 
+6. **CI & GitHub Actions Build Verification**:
+   - Verify CI builds succeed after push. Supply non-secret build-time placeholders in CI workflows so env checks pass during static build steps, and use `export const dynamic = 'force-dynamic'` on dynamic API routes.
+

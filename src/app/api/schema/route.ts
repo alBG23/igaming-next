@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { MCPDatabase } from '@/lib/mcp-database'
 
+export const dynamic = 'force-dynamic'
+
 const mcp = new MCPDatabase()
 
 export async function GET() {

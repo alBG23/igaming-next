@@ -37,3 +37,5 @@ jobs:
         env:
           NODE_ENV: production
           NEXT_PUBLIC_API_URL: https://igaming-backend-dev.onrender.com
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://mock-ci-supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-ci-anon-key-valid-length-1234567890' }}
