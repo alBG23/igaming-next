@@ -21,6 +21,16 @@ if (process.env.NODE_ENV === 'development') {
 export const metadata = {
   title: "iGaming Analytics Dashboard",
   description: "Analytics dashboard for iGaming platform",
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.png', type: 'image/png', sizes: '512x512' }
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
+    ]
+  }
 }
 
 export default function RootLayout({
