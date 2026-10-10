@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
-    "check": "npm run lint && npm run build",
-    "check-build": "npm run lint && npm run build",
+    "check": "npm run check-build",
+    "check-build": "npm run lint && NEXT_DIST_DIR=.next_check next build && rimraf .next_check",
     "start": "next start",
     "lint": "next lint",
     "clean": "rimraf .next",
