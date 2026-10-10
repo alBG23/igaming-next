@@ -134,50 +134,63 @@ export default function DashboardPage() {
         })
 
         // Fetch users, payments, and games concurrently with abortSignal
+        const fetchUsers = async () => {
+          try {
+            const res = await supabase
+              .from('users_view')
+              .select('id', { count: 'exact' })
+              .gte('last_sign_in_at', adjustedStart.toISOString())
+              .lte('last_sign_in_at', adjustedEnd.toISOString())
+              .limit(1)
+              .abortSignal(abortController.signal)
+            return { count: res.count ?? 0, error: res.error }
+          } catch (err: any) {
+            if (err?.name === 'AbortError') return { count: 0, error: null }
+            console.warn('Failed to fetch active users:', err)
+            return { count: 0, error: err }
+          }
+        }
+
+        const fetchPayments = async () => {
+          try {
+            const res = await supabase
+              .from('payments_view')
+              .select('success, amount_cents, created_at, action')
+              .gte('created_at', adjustedStart.toISOString())
+              .lte('created_at', adjustedEnd.toISOString())
+              .order('created_at', { ascending: false })
+              .limit(5000)
+              .abortSignal(abortController.signal)
+            return { data: res.data || [], error: res.error }
+          } catch (err: any) {
+            if (err?.name === 'AbortError') return { data: [], error: null }
+            console.warn('Failed to fetch payments:', err)
+            return { data: [], error: err }
+          }
+        }
+
+        const fetchGames = async () => {
+          try {
+            const res = await supabase
+              .from('casino_games_view')
+              .select('bets_sum, payoff_sum, created_at')
+              .gte('created_at', adjustedStart.toISOString())
+              .lte('created_at', adjustedEnd.toISOString())
+              .order('created_at', { ascending: false })
+              .limit(5000)
+              .abortSignal(abortController.signal)
+            return { data: res.data || [], error: res.error }
+          } catch (err: any) {
+            if (err?.name === 'AbortError') return { data: [], error: null }
+            console.warn('Failed to fetch game metrics:', err)
+            return { data: [], error: err }
+          }
+        }
+
         const [usersRes, paymentsRes, gamesRes] = await Promise.all([
-          supabase
-            .from('users_view')
-            .select('id', { count: 'exact' })
-            .gte('last_sign_in_at', adjustedStart.toISOString())
-            .lte('last_sign_in_at', adjustedEnd.toISOString())
-            .limit(1)
-            .abortSignal(abortController.signal)
-            .then(res => ({ count: res.count ?? 0, error: res.error }))
-            .catch(err => {
-              if (err?.name === 'AbortError') return { count: 0, error: null }
-              console.warn('Failed to fetch active users:', err)
-              return { count: 0, error: err }
-            }),
-
-          supabase
-            .from('payments_view')
-            .select('success, amount_cents, created_at, action')
-            .gte('created_at', adjustedStart.toISOString())
-            .lte('created_at', adjustedEnd.toISOString())
-            .order('created_at', { ascending: false })
-            .limit(5000)
-            .abortSignal(abortController.signal)
-            .then(res => ({ data: res.data || [], error: res.error }))
-            .catch(err => {
-              if (err?.name === 'AbortError') return { data: [], error: null }
-              console.warn('Failed to fetch payments:', err)
-              return { data: [], error: err }
-            }),
-
-          supabase
-            .from('casino_games_view')
-            .select('bets_sum, payoff_sum, created_at')
-            .gte('created_at', adjustedStart.toISOString())
-            .lte('created_at', adjustedEnd.toISOString())
-            .order('created_at', { ascending: false })
-            .limit(5000)
-            .abortSignal(abortController.signal)
-            .then(res => ({ data: res.data || [], error: res.error }))
-            .catch(err => {
-              if (err?.name === 'AbortError') return { data: [], error: null }
-              console.warn('Failed to fetch game metrics:', err)
-              return { data: [], error: err }
-            })
+          fetchUsers(),
+          fetchPayments(),
+          fetchGames()
         ])
 
         if (isCancelled) return
