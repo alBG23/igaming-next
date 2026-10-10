@@ -19,3 +19,6 @@
 6. **CI & GitHub Actions Build Verification**:
    - Verify CI builds succeed after push. Supply non-secret build-time placeholders in CI workflows so env checks pass during static build steps, and use `export const dynamic = 'force-dynamic'` on dynamic API routes.
 
+7. **Always Provide Clickable Markdown Links**:
+   - Always format URLs as clickable markdown links, especially [igaming-postgres-dev Dashboard](https://dashboard.render.com/d/dpg-db4cj4ijnfac73av4i40-a) and Render creation pages.
+
