@@ -201,6 +201,11 @@ export default function PaymentsPage() {
   }
 
   useEffect(() => {
+    let active = true
+    const timeout = setTimeout(() => {
+      if (active) setLoading(false)
+    }, 5000)
+
     const fetchData = async () => {
       setLoading(true)
       setError(null)
@@ -210,13 +215,19 @@ export default function PaymentsPage() {
           fetchReports()
         ])
       } catch (err) {
+        console.warn('Payments fetchData error:', err)
         setError(err instanceof Error ? err.message : 'An error occurred')
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
 
     fetchData()
+
+    return () => {
+      active = false
+      clearTimeout(timeout)
+    }
   }, [activeTab, timeRange, dateRange])
 
   useEffect(() => {

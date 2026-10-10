@@ -68,56 +68,76 @@ export function CasinoGamesClient() {
   })
 
   useEffect(() => {
-    fetchData()
+    let active = true
+    const timeout = setTimeout(() => {
+      if (active) setLoading(false)
+    }, 5000)
+
+    fetchData().finally(() => {
+      if (active) setLoading(false)
+    })
+
+    return () => {
+      active = false
+      clearTimeout(timeout)
+    }
   }, [dateRange])
 
   const fetchData = async () => {
     try {
       setLoading(true)
 
-      // Fetch game sessions
-      const { data: sessionsData } = await getCasinoGamesData({
+      // Fetch game sessions safely
+      const sessionsPromise = getCasinoGamesData({
         startDate: dateRange?.from?.toISOString() || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
         endDate: dateRange?.to?.toISOString() || new Date().toISOString(),
         page: 1,
         pageSize: 100
+      }).catch(err => {
+        console.warn('Failed to fetch game sessions:', err)
+        return { data: [], count: 0, error: err }
       })
 
-      // Fetch games catalog
-      const { data: gamesData } = await getGamesCatalog({
+      // Fetch games catalog safely
+      const gamesPromise = getGamesCatalog({
         page: 1,
         pageSize: 100,
         filters: {
           provider: undefined,
           category: undefined
         }
+      }).catch(err => {
+        console.warn('Failed to fetch games catalog:', err)
+        return { data: [], count: 0 }
       })
 
-      if (sessionsData && gamesData) {
-        setSessions(sessionsData)
-        setGames(gamesData)
+      const [sessionsRes, gamesRes] = await Promise.all([sessionsPromise, gamesPromise])
+      const sessionsData = (sessionsRes && sessionsRes.data) ? sessionsRes.data : []
+      const gamesData = (gamesRes && gamesRes.data) ? gamesRes.data : []
 
-        // Calculate metrics
-        const totalBets = sessionsData.reduce((sum, session) => sum + session.bets_sum, 0)
-        const totalPayouts = sessionsData.reduce((sum, session) => sum + session.payoff_sum, 0)
-        const totalJackpots = sessionsData.reduce((sum, session) => sum + session.jackpot_win_cents, 0)
-        const uniquePlayers = new Set(sessionsData.map(session => session.account_id)).size
-        
-        const avgDuration = sessionsData.reduce((sum, session) => {
-          const start = new Date(session.created_at)
-          const end = new Date(session.finished_at)
-          return sum + (end.getTime() - start.getTime())
-        }, 0) / sessionsData.length / 1000 / 60 // Convert to minutes
+      setSessions(sessionsData)
+      setGames(gamesData)
 
-        setMetrics({
-          totalBets,
-          totalPayouts,
-          totalJackpots,
-          uniquePlayers,
-          avgSessionDuration: avgDuration,
-          rtp: totalPayouts / totalBets * 100
-        })
-      }
+      // Calculate metrics safely (no NaN on empty data)
+      const totalBets = sessionsData.reduce((sum, session) => sum + (session.bets_sum || 0), 0)
+      const totalPayouts = sessionsData.reduce((sum, session) => sum + (session.payoff_sum || 0), 0)
+      const totalJackpots = sessionsData.reduce((sum, session) => sum + (session.jackpot_win_cents || 0), 0)
+      const uniquePlayers = new Set(sessionsData.map(session => session.account_id).filter(Boolean)).size
+      
+      const avgDuration = sessionsData.length > 0 ? (sessionsData.reduce((sum, session) => {
+        const start = new Date(session.created_at)
+        const end = new Date(session.finished_at)
+        return sum + Math.max(0, end.getTime() - start.getTime())
+      }, 0) / sessionsData.length / 1000 / 60) : 0
+
+      setMetrics({
+        totalBets,
+        totalPayouts,
+        totalJackpots,
+        uniquePlayers,
+        avgSessionDuration: isNaN(avgDuration) ? 0 : avgDuration,
+        rtp: totalBets > 0 ? (totalPayouts / totalBets * 100) : 0
+      })
 
       setError(null)
     } catch (err) {

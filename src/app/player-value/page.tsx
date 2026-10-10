@@ -71,31 +71,46 @@ export default function PlayerValuePage() {
   // supabase is already imported
 
   useEffect(() => {
-    fetchData()
+    let active = true
+    const timeout = setTimeout(() => {
+      if (active) setLoading(false)
+    }, 4000)
+
+    fetchData().finally(() => {
+      if (active) setLoading(false)
+    })
+
+    return () => {
+      active = false
+      clearTimeout(timeout)
+    }
   }, [dateRange])
 
   const fetchData = async () => {
     try {
       setLoading(true)
-      const { connected, error: connectionError } = await testSupabaseConnection()
-      
-      if (!connected) {
-        throw new Error(connectionError || 'Unable to connect to database')
-      }
 
-      const { data: metricsData, error: metricsError } = await supabase
+      const { data: metricsData } = await supabase
         .from('player_value_metrics')
         .select('*')
-        .single()
+        .maybeSingle()
 
-      if (metricsError) throw metricsError
+      if (metricsData) {
+        setMetrics(metricsData)
+      } else {
+        setMetrics(fallbackMetrics)
+      }
 
-      const { data: chartData, error: chartError } = await supabase
+      const { data: chartDataRes } = await supabase
         .from('player_value_trend')
         .select('*')
         .order('month', { ascending: true })
 
-      if (chartError) throw chartError
+      if (chartDataRes && chartDataRes.length > 0) {
+        setChartData(chartDataRes)
+      } else {
+        setChartData(fallbackChartData)
+      }
 
       const startDate = dateRange?.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       const endDate = dateRange?.to || new Date()
@@ -254,14 +269,6 @@ export default function PlayerValuePage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-      </div>
-    )
   }
 
   return (

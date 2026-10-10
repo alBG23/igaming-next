@@ -102,10 +102,19 @@ const TIME_RANGES = {
   }
 }
 
+const DEFAULT_METRICS: DashboardMetrics = {
+  activeUsers: 0,
+  totalRevenue: 0,
+  netRevenue: 0,
+  successRate: 0,
+  avgTransactionValue: 0,
+  dailyTrends: []
+}
+
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>('thisMonth')
   const [customRange, setCustomRange] = useState<{ start: Date; end: Date }>(() => TIME_RANGES.custom.getRange())
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
+  const [metrics, setMetrics] = useState<DashboardMetrics>(DEFAULT_METRICS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -119,6 +128,14 @@ export default function DashboardPage() {
   useEffect(() => {
     let isCancelled = false
     const abortController = new AbortController()
+
+    // Safety timeout: abort slow queries after 5 seconds to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      abortController.abort()
+      if (!isCancelled) {
+        setLoading(false)
+      }
+    }, 5000)
 
     async function fetchMetrics() {
       try {
@@ -312,20 +329,11 @@ export default function DashboardPage() {
     fetchMetrics()
 
     return () => {
+      clearTimeout(timeoutId)
       isCancelled = true
       abortController.abort()
     }
   }, [timeRange, startKey, endKey])
-
-  if (loading && !metrics) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-      </div>
-    )
-  }
-  if (error && !metrics) return <div className="p-6 text-red-500">Error: {error}</div>
-  if (!metrics) return <div className="p-6">No data available</div>
 
   return (
     <div className="p-6">

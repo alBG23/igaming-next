@@ -93,15 +93,29 @@ export default function CohortsPage() {
 
       setError(null);
     } catch (err) {
-      console.error('Error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.warn('Cohorts fetchData warning:', err);
+      setCohorts([]);
+      setRetentionTrends([]);
+      setValueTrends([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    let active = true;
+    const timeout = setTimeout(() => {
+      if (active) setLoading(false);
+    }, 4000);
+
+    fetchData().finally(() => {
+      if (active) setLoading(false);
+    });
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
   }, []);
 
   const filteredCohorts = cohorts.filter(cohort =>
