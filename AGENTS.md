@@ -10,3 +10,6 @@
    - Never hardcode URLs (`http://localhost:3000`, `http://localhost:3001`, database connection strings, API keys) into source code.
    - Use `process.env.NEXT_PUBLIC_APP_URL`, `process.env.NEXT_PUBLIC_API_URL`, and `process.env.DATABASE_URL`.
 
+4. **Always Verify URLs Before Providing Links**:
+   - Never provide deployment, external, or service links without first checking that they respond and work (no 404s/errors). Only suggest links that are confirmed active.
+
