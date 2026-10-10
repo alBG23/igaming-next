@@ -19,6 +19,7 @@ import {
   CreditCard,
 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 const navigationItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -33,6 +34,7 @@ const navigationItems = [
 ]
 
 export function Sidebar() {
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const toggleSidebar = () => {
@@ -93,10 +95,18 @@ export function Sidebar() {
         </div>
         <Button
           variant="ghost"
-          className="mt-4 w-full justify-start gap-2"
+          className="mt-4 w-full justify-start gap-2 hover:bg-destructive/10 hover:text-destructive transition-colors"
           onClick={() => {
-            // Handle logout
+            try {
+              localStorage.removeItem("supabase.auth.token");
+              sessionStorage.clear();
+              document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            } catch {
+              // Ignore cleanup errors
+            }
+            router.push("/dashboard");
           }}
+          title="Sign out of administration session"
         >
           <LogOut className="h-4 w-4" />
           {sidebarOpen && <span>Logout</span>}
