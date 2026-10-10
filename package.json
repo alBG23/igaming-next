@@ -13,7 +13,7 @@
     "dev:clean": "npm run clean && npm run dev",
     "mcp": "ts-node src/server/mcp-server.ts",
     "get-schema": "ts-node src/scripts/get-schema.ts",
-    "prepare": "husky install"
+    "prepare": "husky install || true"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.0.4",

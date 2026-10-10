@@ -4,12 +4,14 @@ services:
     name: igaming-frontend-dev
     runtime: node
     region: frankfurt
-    plan: starter
-    branch: dev
+    plan: free
+    branch: feature/render-dev-infra
     buildCommand: npm ci && npm run build
-    startCommand: npm start
+    startCommand: npx next start -p $PORT
     healthCheckPath: /
     envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
