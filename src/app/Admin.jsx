@@ -35,6 +35,7 @@ import AuthGuard from '../components/auth/AuthGuard';
 import TenantConfig from '../components/admin/TenantConfig';
 import SupportTickets from '../components/admin/SupportTickets';
 import KnowledgeCurator from '../components/admin/KnowledgeCurator';
+import TenantSecurityDashboard from '@/components/admin/TenantSecurityDashboard';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('users');
@@ -167,12 +168,15 @@ export default function Admin() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full grid grid-cols-7">
+            <TabsList className="w-full grid grid-cols-8">
               <TabsTrigger value="users" className="flex items-center gap-2">
                 <Users className="h-4 w-4" /> Users
               </TabsTrigger>
               <TabsTrigger value="security" className="flex items-center gap-2">
                 <Lock className="h-4 w-4" /> Security
+              </TabsTrigger>
+              <TabsTrigger value="tenant-security" className="flex items-center gap-2">
+                <Shield className="h-4 w-4" /> Tenant Isolation
               </TabsTrigger>
               <TabsTrigger value="integrations" className="flex items-center gap-2">
                 <Database className="h-4 w-4" /> Integrations
@@ -795,8 +799,13 @@ export default function Admin() {
               <TenantConfig />
             </TabsContent>
 
+            <TabsContent value="tenant-security" className="space-y-4 mt-6">
+              <TenantSecurityDashboard />
+            </TabsContent>
+
             <TabsContent value="support-tickets" className="mt-6">
               <SupportTickets />
+            </TabsContent>
             </TabsContent>
           </Tabs>
         </div>
