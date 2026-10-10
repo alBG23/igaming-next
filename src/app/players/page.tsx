@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Search,
   Plus,
@@ -35,6 +36,10 @@ import {
   Trash2,
   Eye,
   Download,
+  Upload,
+  Database,
+  RefreshCw,
+  FileText,
   Users,
   UserCheck,
   UserX,
@@ -153,21 +158,63 @@ export default function PlayersPage() {
   });
   const [editError, setEditError] = useState('');
 
-  // Load from localStorage on mount
-  useEffect(() => {
+  // Real Database Source & Import Modal States
+  const [dataSource, setDataSource] = useState<'postgresql' | 'local'>('local');
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importContent, setImportContent] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch real players from PostgreSQL database
+  const fetchPlayersFromDb = async () => {
+    setIsRefreshing(true);
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setPlayers(parsed);
+      const res = await fetch('/api/players');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        const formatted: Player[] = json.data.map((item: any) => ({
+          id: Number(item.id),
+          name: item.name || 'Unnamed',
+          email: item.email,
+          status: item.status || 'Active',
+          tier: (item.vipTier as any) || 'Bronze',
+          balance: parseFloat(item.balance) || 0,
+          country: item.country || 'EU',
+          lastLogin: item.lastLogin || 'Never',
+          registeredAt: item.registeredAt || '2026-01-01',
+        }));
+        setPlayers(formatted);
+        setDataSource('postgresql');
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
+        return true;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch players from PostgreSQL API:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+    return false;
+  };
+
+  // Load from database on mount, fallback to localStorage
+  useEffect(() => {
+    fetchPlayersFromDb().then((fetched) => {
+      if (!fetched) {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setPlayers(parsed);
+            }
+          }
+        } catch {
+          // Fallback to default players
         }
       }
-    } catch {
-      // Fallback to default players
-    } finally {
       setIsLoaded(true);
-    }
+    });
   }, []);
 
   // Save to localStorage when players list changes
@@ -265,6 +312,87 @@ export default function PlayersPage() {
     setIsAddOpen(false);
     resetAddForm();
     showNotification('success', `Player "${newPlayer.name}" successfully created!`);
+
+    // Sync to PostgreSQL database asynchronously
+    fetch('/api/players', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: newPlayer.name,
+        email: newPlayer.email,
+        status: newPlayer.status,
+        vip_tier: newPlayer.tier,
+        balance: newPlayer.balance,
+        country: newPlayer.country
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          fetchPlayersFromDb();
+        }
+      })
+      .catch(err => {
+        console.warn('Could not sync player to PostgreSQL:', err);
+      });
+  };
+
+  // Handle Real Data Import (CSV / JSON / SQL)
+  const handleImportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importContent.trim()) {
+      setImportError('Please upload a file or paste CSV, JSON, or SQL dump data.');
+      return;
+    }
+    setImportLoading(true);
+    setImportError('');
+    try {
+      const res = await fetch('/api/players/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw_content: importContent })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Import failed');
+      }
+      await fetchPlayersFromDb();
+      setIsImportOpen(false);
+      setImportContent('');
+      showNotification('success', data.message || `Successfully imported ${data.count || 0} real players into database!`);
+    } catch (err: any) {
+      setImportError(err.message || 'Failed to import player data');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (text) {
+        setImportContent(text);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const loadSampleData = () => {
+    const sample = `id,name,email,status,vip_tier,balance,currency,country,last_login,registered_at
+1001,Alexander Novak,a.novak@brightcasino.com,Active,VIP,4850.00,EUR,DE,2026-10-09 18:32:00,2025-04-12
+1002,Sophia Rossi,sophia.r@luxegaming.it,Active,Gold,1290.75,EUR,IT,2026-10-10 14:15:22,2025-06-20
+1003,Liam O'Connor,liam.oc@celticbet.ie,Active,Silver,680.50,EUR,IE,2026-10-08 21:05:10,2025-08-01
+1004,Elena Ivanova,elena.iv@nordicslot.se,Inactive,Bronze,95.00,EUR,SE,2026-09-15 11:20:45,2025-11-15
+1005,Mateo Fernandez,m.fernandez@ibera.es,Active,Gold,2150.20,EUR,ES,2026-10-10 19:40:00,2025-05-19
+1006,Chloe Dubois,chloe.d@montecarlo.fr,Active,VIP,8420.00,EUR,FR,2026-10-10 22:11:05,2025-02-10
+1007,Lars Lindholm,lars.l@vikingslots.no,Inactive,Silver,310.00,EUR,NO,2026-09-28 09:14:30,2025-09-05
+1008,Katarina Milic,kat.m@adriaticplay.hr,Active,Bronze,180.50,EUR,HR,2026-10-07 16:55:00,2026-01-14
+1009,David Miller,d.miller@londonbets.co.uk,Active,VIP,5600.00,GBP,GB,2026-10-10 20:30:15,2025-03-25
+1010,Anna Kowalska,anna.k@polandspin.pl,Active,Silver,420.00,EUR,PL,2026-10-06 13:42:10,2026-02-01`;
+    setImportContent(sample);
   };
 
   // Open Edit Dialog
@@ -419,12 +547,47 @@ export default function PlayersPage() {
       {/* Header and Add Player Button */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Players Management</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">Players Management</h1>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+              dataSource === 'postgresql'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                : 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+            }`}>
+              <Database className="h-3 w-3" />
+              {dataSource === 'postgresql' ? 'Live PostgreSQL' : 'Local Storage'}
+            </span>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             Manage player accounts, account statuses, balances, and operational profiles.
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setImportError('');
+              setIsImportOpen(true);
+            }}
+            className="gap-2"
+            id="import-players-btn"
+            title="Import real player data from CSV, JSON, or SQL dump"
+          >
+            <Upload className="h-4 w-4" />
+            Import Data
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchPlayersFromDb}
+            disabled={isRefreshing}
+            className="gap-1.5"
+            title="Refresh from PostgreSQL Database"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Sync DB
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -1068,6 +1231,95 @@ export default function PlayersPage() {
               Delete Player
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================= MODAL: IMPORT REAL PLAYERS ================= */}
+      <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5 text-primary" />
+              Import Real Player Data
+            </DialogTitle>
+            <DialogDescription>
+              Upload or paste a real player export file (CSV, JSON, or SQL dump) to sync into the PostgreSQL database.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleImportSubmit} className="space-y-4 py-2">
+            {importError && (
+              <div className="p-3 text-xs bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-200 rounded-md">
+                {importError}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="import-file" className="text-xs font-medium">Select File (.csv, .json, .sql)</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={loadSampleData}
+                  className="text-xs text-primary hover:text-primary/80 h-7 px-2"
+                >
+                  <FileText className="h-3.5 w-3.5 mr-1" />
+                  Load Sample Export (10 Players)
+                </Button>
+              </div>
+              <Input
+                id="import-file"
+                type="file"
+                accept=".csv,.json,.sql,text/csv,application/json"
+                onChange={handleFileUpload}
+                className="cursor-pointer file:cursor-pointer"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="import-textarea" className="text-xs font-medium">Or Paste Data Directly</Label>
+              <Textarea
+                id="import-textarea"
+                rows={8}
+                value={importContent}
+                onChange={(e) => setImportContent(e.target.value)}
+                placeholder="Paste CSV, JSON array, or SQL statements here..."
+                className="font-mono text-xs"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Supported columns: <code>id, name, email, status, vip_tier, balance, currency, country, last_login</code>
+              </p>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsImportOpen(false)}
+                disabled={importLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={importLoading || !importContent.trim()}
+                className="gap-2"
+              >
+                {importLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    Import to Database
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
