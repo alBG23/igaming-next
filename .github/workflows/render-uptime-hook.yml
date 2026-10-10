@@ -1,0 +1,30 @@
+name: Render Free Tier Uptime Hook (100% Uptime)
+
+on:
+  schedule:
+    # Runs every 14 minutes (Render free tier sleeps after 15 minutes of idle)
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: render-uptime-hook
+  cancel-in-progress: true
+
+jobs:
+  heartbeat:
+    name: Heartbeat Ping Render Free Tier
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Ping Frontend KeepAlive Endpoint
+        run: |
+          echo "Pinging igaming-frontend-dev..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 https://igaming-frontend-dev.onrender.com/api/keepalive || echo "failed")
+          echo "Frontend KeepAlive HTTP status: $STATUS"
+
+      - name: Ping Backend Health Endpoint
+        run: |
+          echo "Pinging igaming-backend-dev..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 https://igaming-backend-dev.onrender.com/api/v1/health || echo "failed")
+          echo "Backend Health HTTP status: $STATUS"
