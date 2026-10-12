@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { DatePickerWithRange } from '@/components/ui/date-range-picker'
 import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
-import { getBonusData } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
 import { DateRange } from 'react-day-picker'
 
@@ -69,7 +68,10 @@ interface BonusMetrics {
 
 export default function BonusesPage() {
   const [activeTab, setActiveTab] = useState('overview')
-  const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => ({
+    from: new Date(Date.now() - 90 * 86400000),
+    to: new Date()
+  }))
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -91,57 +93,54 @@ export default function BonusesPage() {
     try {
       setLoading(true)
 
-      // Skip if dateRange is not set
-      if (!dateRange?.from || !dateRange?.to) {
-        setLoading(false)
-        return
-      }
+      const params = new URLSearchParams()
+      if (dateRange?.from) params.set('startDate', dateRange.from.toISOString())
+      if (dateRange?.to) params.set('endDate', dateRange.to.toISOString())
 
-      const { data } = await getBonusData({
-        startDate: dateRange.from.toISOString(),
-        endDate: dateRange.to.toISOString(),
-        page: 1,
-        pageSize: 100
+      const res = await fetch(`/api/bonuses?${params.toString()}`)
+      if (!res.ok) {
+        throw new Error(`Failed to fetch bonus data (status ${res.status})`)
+      }
+      const json = await res.json()
+      const data = json.data || []
+
+      const transformedData: BonusData[] = data.map((item: any) => {
+        const baseData = {
+          id: String(item.id),
+          created_at: item.created_at,
+          account_id: String(item.account_id),
+          title: item.title,
+          status: item.status,
+          amount_cents: Number(item.amount_cents) || 0,
+          amount_wager_cents: Number(item.amount_wager_cents) || 0,
+          amount_locked_cents: Number(item.amount_locked_cents) || 0,
+          valid_until: item.valid_until,
+          activated_at: item.activated_at || null,
+          finished_at: item.finished_at || null,
+        }
+
+        if (item.type === 'freespin' || item.game_id !== undefined || item.spins_count !== undefined) {
+          return {
+            ...baseData,
+            type: 'freespin' as const,
+            game_id: String(item.game_id || item.strategy || 'slots'),
+            spins_count: Number(item.spins_count) || 0,
+            spins_used: Number(item.spins_used) || 0,
+          } as FreespinIssue
+        } else {
+          return {
+            ...baseData,
+            type: 'bonus' as const,
+            strategy: String(item.strategy || 'deposit_match'),
+          } as BonusIssue
+        }
       })
 
-      if (data) {
-        // First, ensure we're working with RawBonusData[]
-        const rawData: RawBonusData[] = data as unknown as RawBonusData[]
-        
-        const transformedData = rawData.map((item) => {
-          const baseData = {
-            id: item.id,
-            created_at: item.created_at,
-            account_id: item.account_id,
-            title: item.title,
-            status: item.status,
-            amount_cents: Number(item.amount_cents),
-            amount_wager_cents: Number(item.amount_wager_cents),
-            amount_locked_cents: Number(item.amount_locked_cents),
-            valid_until: item.valid_until,
-            activated_at: item.activated_at,
-            finished_at: item.finished_at
-          }
+      setBonusData(transformedData)
 
-          if (item.game_id !== undefined) {
-            return {
-              ...baseData,
-              type: 'freespin' as const,
-              game_id: String(item.game_id),
-              spins_count: Number(item.spins_count),
-              spins_used: Number(item.spins_used)
-            } as FreespinIssue
-          } else {
-            return {
-              ...baseData,
-              type: 'bonus' as const,
-              strategy: String(item.strategy)
-            } as BonusIssue
-          }
-        })
-
-        setBonusData(transformedData)
-
+      if (json.metrics) {
+        setMetrics(json.metrics)
+      } else {
         const bonuses = transformedData.filter((item): item is BonusIssue => item.type === 'bonus')
         const freespins = transformedData.filter((item): item is FreespinIssue => item.type === 'freespin')
 
@@ -151,7 +150,7 @@ export default function BonusesPage() {
           bonus.status === 'active' ? sum + bonus.amount_wager_cents : sum, 0)
 
         const completedBonuses = transformedData.filter(item => item.status === 'completed').length
-        const completionRate = (completedBonuses / transformedData.length) * 100
+        const completionRate = transformedData.length > 0 ? (completedBonuses / transformedData.length) * 100 : 0
 
         setMetrics({
           totalBonusesIssued: bonuses.length,
@@ -334,8 +333,16 @@ export default function BonusesPage() {
               <CardContent className="p-0">
                 <DataTable
                   columns={bonusColumns}
-                  data={bonusData}
-                  searchKey="title"
+                  data={bonusData.filter((item) => {
+                    if (!searchQuery.trim()) return true
+                    const q = searchQuery.toLowerCase()
+                    return (
+                      item.title.toLowerCase().includes(q) ||
+                      item.account_id.toLowerCase().includes(q) ||
+                      item.status.toLowerCase().includes(q) ||
+                      item.type.toLowerCase().includes(q)
+                    )
+                  })}
                 />
               </CardContent>
             </Card>

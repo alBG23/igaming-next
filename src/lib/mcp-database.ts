@@ -1,10 +1,13 @@
 export class MCPDatabase {
   private readonly serverName = 'supabase'
-  private readonly baseUrl = 'http://localhost:3001'
+  private readonly baseUrl =
+    typeof window !== 'undefined'
+      ? ''
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'
 
   async testConnection() {
     try {
-      const response = await fetch(`${this.baseUrl}/mcp-query`, {
+      const response = await fetch(`${this.baseUrl}/api/mcp-query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -28,13 +31,13 @@ export class MCPDatabase {
       return { success: true }
     } catch (error) {
       console.error('MCP Connection Error:', error)
-      throw new Error('MCP server might not be running. Please ensure the MCP server is started with: npx @modelcontextprotocol/server-postgres postgresql://postgres.dgppxcjafcinmwgzrpnk:Y2unQJNY6J%40PXB6@aws-0-eu-central-1.pooler.supabase.com:5432/postgres --port 3001 --host 0.0.0.0')
+      throw new Error('MCP server might not be running. Ensure the database service or MCP server is running.')
     }
   }
 
   async query(query: string, params: any[] = []) {
     try {
-      const response = await fetch(`${this.baseUrl}/mcp-query`, {
+      const response = await fetch(`${this.baseUrl}/api/mcp-query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

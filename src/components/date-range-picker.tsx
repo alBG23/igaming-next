@@ -17,16 +17,28 @@ import {
 } from "@/components/ui/dialog"
 
 interface DateRangePickerProps {
-  date: DateRange | undefined
-  setDate: (date: DateRange | undefined) => void
+  date?: DateRange | undefined
+  setDate?: (date: DateRange | undefined) => void
+  onDateChange?: (date: DateRange | undefined) => void
+  value?: any
+  onChange?: (date: any) => void
   className?: string
 }
 
 export function DateRangePicker({
   date,
   setDate,
+  onDateChange,
+  value,
+  onChange,
   className,
 }: DateRangePickerProps) {
+  const effectiveDate = date || value
+  const handleSelect = (newDate: DateRange | undefined) => {
+    if (setDate) setDate(newDate)
+    if (onDateChange) onDateChange(newDate)
+    if (onChange) onChange(newDate)
+  }
   return (
     <div className={cn("grid gap-2", className)}>
       <Dialog>
@@ -36,18 +48,18 @@ export function DateRangePicker({
             variant={"outline"}
             className={cn(
               "w-[300px] justify-start text-left font-normal",
-              !date && "text-muted-foreground"
+              !effectiveDate && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {date?.from ? (
-              date.to ? (
+            {effectiveDate?.from ? (
+              effectiveDate.to ? (
                 <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
+                  {format(effectiveDate.from, "LLL dd, y")} -{" "}
+                  {format(effectiveDate.to, "LLL dd, y")}
                 </>
               ) : (
-                format(date.from, "LLL dd, y")
+                format(effectiveDate.from, "LLL dd, y")
               )
             ) : (
               <span>Pick a date range</span>
@@ -62,9 +74,9 @@ export function DateRangePicker({
             <Calendar
               initialFocus
               mode="range"
-              defaultMonth={date?.from}
-              selected={date}
-              onSelect={setDate}
+              defaultMonth={effectiveDate?.from}
+              selected={effectiveDate}
+              onSelect={handleSelect}
               numberOfMonths={2}
             />
           </div>

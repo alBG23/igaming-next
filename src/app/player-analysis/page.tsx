@@ -32,6 +32,17 @@ const players = [
 export default function PlayerAnalysisPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Active' | 'Inactive'>('all')
+
+  const toggleFilter = () => {
+    setStatusFilter(prev => prev === 'all' ? 'Active' : prev === 'Active' ? 'Inactive' : 'all')
+  }
+
+  const filteredPlayers = players.filter(player => {
+    const matchesSearch = player.name.toLowerCase().includes(searchQuery.toLowerCase()) || player.id.toString().includes(searchQuery)
+    const matchesStatus = statusFilter === 'all' || player.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -157,9 +168,13 @@ export default function PlayerAnalysisPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button variant="outline">
+            <Button 
+              variant={statusFilter !== 'all' ? 'default' : 'outline'} 
+              onClick={toggleFilter}
+              className="min-w-[100px]"
+            >
               <Filter className="mr-2 h-4 w-4" />
-              Filter
+              {statusFilter === 'all' ? 'Filter' : statusFilter}
             </Button>
           </div>
           <Card>
@@ -176,7 +191,7 @@ export default function PlayerAnalysisPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {players.map((player) => (
+                  {filteredPlayers.map((player) => (
                     <TableRow key={player.id}>
                       <TableCell>{player.id}</TableCell>
                       <TableCell>{player.name}</TableCell>

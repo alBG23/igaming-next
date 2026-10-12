@@ -1,19 +1,43 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { DollarSign, TrendingUp, Users, Activity, Search, Filter, Clock, AlertCircle } from 'lucide-react'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { supabase, testSupabaseConnection } from "@/lib/supabase"
 import { DatePickerWithRange } from '@/components/ui/date-range-picker'
 import { DateRange } from 'react-day-picker'
-import { createClient } from '@/lib/supabase'
 import { BarChart, DonutChart } from '@tremor/react'
 import { formatCurrency, formatPercentage } from '@/lib/utils'
+
+interface ValuedPlayer {
+  id: number
+  name: string
+  tier: 'VIP' | 'Gold' | 'Silver' | 'Bronze'
+  lifetimeValue: number
+  monthlyValue: number
+  acquisitionCost: number
+  roi: number
+}
+
+const DEFAULT_VALUED_PLAYERS: ValuedPlayer[] = [
+  { id: 101, name: 'Maximilian Vance', tier: 'VIP', lifetimeValue: 24500, monthlyValue: 3200, acquisitionCost: 450, roi: 5444 },
+  { id: 102, name: 'Elena Rostova', tier: 'Gold', lifetimeValue: 12800, monthlyValue: 1650, acquisitionCost: 320, roi: 4000 },
+  { id: 103, name: 'Marcus Brody', tier: 'Silver', lifetimeValue: 5400, monthlyValue: 720, acquisitionCost: 210, roi: 2571 },
+  { id: 104, name: 'Aria Montgomery', tier: 'Gold', lifetimeValue: 9800, monthlyValue: 1100, acquisitionCost: 290, roi: 3379 },
+  { id: 105, name: 'Lucas Sterling', tier: 'VIP', lifetimeValue: 31200, monthlyValue: 4100, acquisitionCost: 500, roi: 6240 },
+  { id: 106, name: 'Chloe Bennett', tier: 'Bronze', lifetimeValue: 1850, monthlyValue: 240, acquisitionCost: 150, roi: 1233 },
+  { id: 107, name: 'David Kim', tier: 'Silver', lifetimeValue: 4200, monthlyValue: 510, acquisitionCost: 190, roi: 2210 },
+]
 
 interface PlayerValueMetrics {
   avg_lifetime_value: number
@@ -60,6 +84,8 @@ const valueCategories = {
 export default function PlayerValuePage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [searchQuery, setSearchQuery] = useState('')
+  const [tierFilter, setTierFilter] = useState('All')
+  const [valuedPlayers, setValuedPlayers] = useState<ValuedPlayer[]>(DEFAULT_VALUED_PLAYERS)
   const [metrics, setMetrics] = useState<PlayerValueMetrics>(fallbackMetrics)
   const [chartData, setChartData] = useState(fallbackChartData)
   const [loading, setLoading] = useState(true)
@@ -68,34 +94,58 @@ export default function PlayerValuePage() {
   const [segments, setSegments] = useState<PlayerSegment[]>([])
   const [distributionData, setDistributionData] = useState<any[]>([])
 
-  const supabase = createClient()
+  const filteredValuedPlayers = useMemo(() => {
+    return valuedPlayers.filter((p) => {
+      const matchesSearch =
+        searchQuery.trim() === '' ||
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.tier.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesTier = tierFilter === 'All' || p.tier === tierFilter
+      return matchesSearch && matchesTier
+    })
+  }, [valuedPlayers, searchQuery, tierFilter])
 
   useEffect(() => {
-    fetchData()
+    let active = true
+    const timeout = setTimeout(() => {
+      if (active) setLoading(false)
+    }, 4000)
+
+    fetchData().finally(() => {
+      if (active) setLoading(false)
+    })
+
+    return () => {
+      active = false
+      clearTimeout(timeout)
+    }
   }, [dateRange])
 
   const fetchData = async () => {
     try {
       setLoading(true)
-      const { connected, error: connectionError } = await testSupabaseConnection()
-      
-      if (!connected) {
-        throw new Error(connectionError || 'Unable to connect to database')
-      }
 
-      const { data: metricsData, error: metricsError } = await supabase
+      const { data: metricsData } = await supabase
         .from('player_value_metrics')
         .select('*')
-        .single()
+        .maybeSingle()
 
-      if (metricsError) throw metricsError
+      if (metricsData) {
+        setMetrics(metricsData)
+      } else {
+        setMetrics(fallbackMetrics)
+      }
 
-      const { data: chartData, error: chartError } = await supabase
+      const { data: chartDataRes } = await supabase
         .from('player_value_trend')
         .select('*')
         .order('month', { ascending: true })
 
-      if (chartError) throw chartError
+      if (chartDataRes && chartDataRes.length > 0) {
+        setChartData(chartDataRes)
+      } else {
+        setChartData(fallbackChartData)
+      }
 
       const startDate = dateRange?.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       const endDate = dateRange?.to || new Date()
@@ -121,7 +171,7 @@ export default function PlayerValuePage() {
       // Fetch gaming data
       const { data: gamingData, error: gamingError } = await supabase
         .from('casino_games_view')
-        .select('player_id, bet_amount, win_amount')
+        .select('player_id, bet_amount, win_amount, created_at')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
 
@@ -137,7 +187,7 @@ export default function PlayerValuePage() {
       }>()
 
       // Process payments
-      paymentsData?.forEach(payment => {
+      paymentsData?.forEach((payment: any) => {
         const playerId = payment.user_id
         if (!playerId) return
 
@@ -159,7 +209,7 @@ export default function PlayerValuePage() {
       })
 
       // Process gaming activity
-      gamingData?.forEach(game => {
+      gamingData?.forEach((game: any) => {
         const playerId = game.player_id
         if (!playerId) return
 
@@ -254,14 +304,6 @@ export default function PlayerValuePage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-      </div>
-    )
   }
 
   return (
@@ -372,20 +414,41 @@ export default function PlayerValuePage() {
               </div>
             </TabsContent>
             <TabsContent value="players" className="space-y-4">
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search players..."
+                    placeholder="Search players by name or tier..."
                     className="pl-8"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-                <Button variant="outline">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Filter
-                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <Filter className="h-4 w-4" />
+                      Filter
+                      {tierFilter !== 'All' && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-56 p-3 space-y-2">
+                    <p className="text-xs font-semibold">Filter by VIP Tier</p>
+                    <div className="grid grid-cols-2 gap-1.5 pt-1">
+                      {['All', 'VIP', 'Gold', 'Silver', 'Bronze'].map(t => (
+                        <Button
+                          key={t}
+                          variant={tierFilter === t ? 'default' : 'outline'}
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setTierFilter(t)}
+                        >
+                          {t}
+                        </Button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
               <Card>
                 <CardContent className="p-0">
@@ -402,14 +465,74 @@ export default function PlayerValuePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {/* Players content */}
+                      {filteredValuedPlayers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                            No matching players found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredValuedPlayers.map((player) => (
+                          <TableRow key={player.id}>
+                            <TableCell className="font-mono text-xs">#{player.id}</TableCell>
+                            <TableCell className="font-medium">{player.name}</TableCell>
+                            <TableCell>
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                player.tier === 'VIP' ? 'bg-purple-100 text-purple-800' :
+                                player.tier === 'Gold' ? 'bg-amber-100 text-amber-800' :
+                                player.tier === 'Silver' ? 'bg-slate-200 text-slate-800' :
+                                'bg-stone-100 text-stone-700'
+                              }`}>
+                                {player.tier}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-medium text-emerald-600">
+                              ${player.lifetimeValue.toLocaleString()}
+                            </TableCell>
+                            <TableCell>${player.monthlyValue.toLocaleString()}</TableCell>
+                            <TableCell>${player.acquisitionCost.toLocaleString()}</TableCell>
+                            <TableCell className="font-semibold text-emerald-600">
+                              {player.roi}%
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
               </Card>
             </TabsContent>
             <TabsContent value="trends" className="space-y-4">
-              {/* Trends content */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cohort Value Realization Over Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[350px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorValueTrends" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <Tooltip />
+                        <Area
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#10b981"
+                          fillOpacity={1}
+                          fill="url(#colorValueTrends)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </>

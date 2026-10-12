@@ -19,11 +19,9 @@ To learn more about Next.js, take a look at the following resources:
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## Deploy on Vercel
+## Deploy on Render
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project is deployed on [Render](https://render.com) using the blueprint defined in `render.yaml`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
-## test22
-
-This is a test line to verify Cursor and GitHub sync.
+- Frontend Web Service: `igaming-next`
+- Database: Managed PostgreSQL (`DATABASE_URL`)

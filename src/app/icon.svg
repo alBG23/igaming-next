@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080C14"/>
+      <stop offset="100%" stop-color="#141C2E"/>
+    </linearGradient>
+
+    <!-- Border Ring Gradient -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="50%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+
+    <!-- Casino Chip Gradient -->
+    <linearGradient id="chipRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+
+    <!-- Bar Gradients -->
+    <linearGradient id="bar1" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#0284C7"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="bar2" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#A855F7"/>
+    </linearGradient>
+    <linearGradient id="bar3" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#34D399"/>
+    </linearGradient>
+
+    <!-- Gold Accent Gradient -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#FCD34D"/>
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Squircle Base -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bgGrad)" stroke="url(#borderGrad)" stroke-width="8"/>
+
+  <!-- Casino Chip Outer Track -->
+  <circle cx="256" cy="256" r="192" fill="url(#chipRing)" stroke="#334155" stroke-width="6"/>
+  <circle cx="256" cy="256" r="192" fill="none" stroke="#F59E0B" stroke-width="12" stroke-dasharray="24 76" stroke-linecap="round"/>
+
+  <!-- Inner Chip Dotted Ring -->
+  <circle cx="256" cy="256" r="160" fill="#0B132B" stroke="#1E293B" stroke-width="4"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#3B82F6" stroke-width="2" stroke-dasharray="6 14" opacity="0.6"/>
+
+  <!-- Analytics Histogram / Trend Bars -->
+  <!-- Bar 1 (Left - Blue/Cyan) -->
+  <rect x="160" y="270" width="44" height="80" rx="8" fill="url(#bar1)"/>
+  
+  <!-- Bar 2 (Middle - Indigo/Purple) -->
+  <rect x="220" y="220" width="44" height="130" rx="8" fill="url(#bar2)"/>
+
+  <!-- Bar 3 (Right - Emerald Green) -->
+  <rect x="280" y="164" width="44" height="186" rx="8" fill="url(#bar3)"/>
+
+  <!-- Dynamic Trendline Connecting Peaks -->
+  <path d="M 182 260 L 242 210 L 302 152" fill="none" stroke="#FCD34D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+
+  <!-- Data Peak Markers -->
+  <circle cx="182" cy="260" r="7" fill="#38BDF8" stroke="#FFFFFF" stroke-width="2"/>
+  <circle cx="242" cy="210" r="7" fill="#C084FC" stroke="#FFFFFF" stroke-width="2"/>
+  <circle cx="302" cy="152" r="9" fill="#F59E0B" stroke="#FFFFFF" stroke-width="3"/>
+
+  <!-- Upward Trend Arrow -->
+  <path d="M 302 152 L 348 120" fill="none" stroke="#FCD34D" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
+  <polygon points="348,120 332,118 344,136" fill="#FCD34D"/>
+
+  <!-- Gambling / Betting Accents: Golden Diamond Spark at top right apex -->
+  <polygon points="370,96 384,116 370,136 356,116" fill="url(#goldGrad)" filter="url(#glow)"/>
+  
+  <!-- Suit Accent: Emerald Diamond -->
+  <polygon points="152,180 160,192 152,204 144,192" fill="#10B981" opacity="0.8"/>
+  <!-- Suit Accent: Ruby Diamond -->
+  <polygon points="344,306 352,318 344,330 336,318" fill="#EF4444" opacity="0.8"/>
+</svg>

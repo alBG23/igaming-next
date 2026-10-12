@@ -1,0 +1,25 @@
+services:
+  # Next.js React Frontend Web Service
+  - type: web
+    name: igaming-frontend-dev
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: feature/render-dev-infra
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npx next start -p $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://igaming-backend-dev.onrender.com
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+

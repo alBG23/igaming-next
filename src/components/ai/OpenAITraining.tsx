@@ -64,12 +64,18 @@ export default function OpenAITraining() {
             <Label>Upload Training Data</Label>
             <div className="flex items-center gap-2">
               <Input
+                id="training-file-input"
                 type="file"
                 accept=".txt,.json,.csv"
                 onChange={handleUploadFile}
                 className="flex-1"
               />
-              <Button variant="outline" size="icon">
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => document.getElementById('training-file-input')?.click()}
+                title="Select training data file"
+              >
                 <Upload className="h-4 w-4" />
               </Button>
             </div>

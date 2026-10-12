@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin"
+
+echo "🔍 [pre-push] Verifying Next.js build and linting before pushing..."
+npm run check-build
+echo "✔ [pre-push] Build validation passed cleanly."

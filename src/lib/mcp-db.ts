@@ -1,7 +1,10 @@
 // MCP Database Client
 export class MCPDatabase {
   private serverName: string = 'supabase'
-  private baseUrl: string = 'http://localhost:3000'
+  private baseUrl: string =
+    typeof window !== 'undefined'
+      ? ''
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'
 
   async query<T = any>(sql: string, params?: any[]): Promise<T[]> {
     try {

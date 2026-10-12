@@ -4,12 +4,11 @@
 Building a production-ready SaaS product for iGaming operators to analyze player and revenue data using natural language and visualization tools.
 
 ## 🧱 Tech Stack
-- Frontend: Next.js 15 (App Router) + shadcn/ui + Artifacts for auto visualizations
-- Backend: Serverless API routes (MCPs) on Vercel
-- Database: Supabase PostgreSQL
-- AI Layer: Claude 3 Sonnet via Anthropic API
-- BI & Reporting: Embedded Metabase dashboards
-- Hosting: Vercel + Supabase
+- Frontend: Next.js 14 (App Router) + shadcn/ui + Tailwind CSS
+- Backend: Next.js API routes + FastAPI backend
+- Database: PostgreSQL (Render Managed / Supabase)
+- AI Layer: Multi-model AI (Gemini / Claude / OpenAI) + Hermes communication
+- Hosting: Render Cloud Web Service + Render PostgreSQL
 
 ## ✅ Completed Tasks
 

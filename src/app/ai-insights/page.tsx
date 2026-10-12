@@ -157,16 +157,23 @@ export default function AIInsights() {
     }
   };
 
-  const handleCreateReport = async (): Promise<void> => {
+  const handleCreateReport = async (reportType: string = 'executive'): Promise<void> => {
     setIsGeneratingResponse(true);
     setErrorMessage(null);
     
     try {
-      // Use mock responses instead of Base44 API
-      const response = mockApi.llmResponses.report;
+      let title = 'Executive Summary';
+      let response = mockApi.llmResponses.report;
+      if (reportType === 'performance') {
+        title = 'Performance & Revenue Report';
+        response = "Performance Analysis Report:\n- GGR Growth: +12.5% MoM driven by live casino & slots.\n- NGR Margin: 68.4% with stable operational margins.\n- High-roller segment revenue increased by 18.2%.\n- Reinvestment rate remains optimal at 14.8%.";
+      } else if (reportType === 'players') {
+        title = 'Player Cohort Analysis Report';
+        response = "Player Analysis Report:\n- Total Active Players: 4,892 (+5.8% MoM).\n- 30-Day Retention Rate: 42.1% (Top quartile performance).\n- VIP Tier Movement: 28 players promoted to Platinum.\n- Churn Risk: 142 players flagged for proactive re-engagement.";
+      }
 
       setChatHistory(prev => [...prev, 
-        { type: 'system', content: 'Generating AI report...' },
+        { type: 'system', content: `Generating ${title}...` },
         { type: 'assistant', content: response }
       ]);
     } catch (error) {
@@ -384,17 +391,17 @@ export default function AIInsights() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <Button className="w-full" onClick={handleCreateReport}>
+                  <Button className="w-full" onClick={() => handleCreateReport('executive')}>
                     <FileText className="h-4 w-4 mr-2" />
                     Generate Executive Report
                   </Button>
                   
-                  <Button className="w-full" variant="outline">
+                  <Button className="w-full" variant="outline" onClick={() => handleCreateReport('performance')}>
                     <TrendingUp className="h-4 w-4 mr-2" />
                     Generate Performance Report
                   </Button>
                   
-                  <Button className="w-full" variant="outline">
+                  <Button className="w-full" variant="outline" onClick={() => handleCreateReport('players')}>
                     <Users className="h-4 w-4 mr-2" />
                     Generate Player Analysis Report
                   </Button>

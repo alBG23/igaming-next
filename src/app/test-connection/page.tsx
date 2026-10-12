@@ -2,24 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { testSupabaseConnection, testAllViews } from "@/lib/supabase"
+import { testSupabaseConnection, testAllViews, supabase } from "@/lib/supabase"
 import { AlertCircle, CheckCircle, XCircle } from "lucide-react"
-import { createClient } from '@supabase/supabase-js'
-
-interface ViewStatus {
-  success: boolean
-  hasData?: boolean
-  error?: string
-}
-
-interface ViewResults {
-  [key: string]: ViewStatus
-}
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export const dynamic = 'force-dynamic'
 

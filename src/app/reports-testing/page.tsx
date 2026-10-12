@@ -66,8 +66,8 @@ export default function ReportsTestingPage() {
         if (countriesError) throw countriesError
 
         // Extract unique values
-        const uniqueAffiliates = [...new Set(affiliatesData.map(a => a.s_tag_affiliate))].filter(Boolean)
-        const uniqueCountries = [...new Set(countriesData.map(c => c.country))].filter(Boolean)
+        const uniqueAffiliates = Array.from(new Set((affiliatesData || []).map((a: any) => a.s_tag_affiliate))).filter(Boolean) as string[]
+        const uniqueCountries = Array.from(new Set((countriesData || []).map((c: any) => c.country))).filter(Boolean) as string[]
 
         setAffiliates(uniqueAffiliates)
         setCountries(uniqueCountries)
@@ -122,13 +122,14 @@ export default function ReportsTestingPage() {
         if (error) throw error
 
         // Calculate metrics
-        const deposits = data.filter(p => p.action === 'deposit')
-        const withdrawals = data.filter(p => p.action === 'withdrawal')
-        const ftds = deposits.filter(p => p.is_first_deposit)
-        const successfulFtds = ftds.filter(p => p.success)
+        const list = Array.isArray(data) ? data : []
+        const deposits = list.filter((p: any) => p.action === 'deposit')
+        const withdrawals = list.filter((p: any) => p.action === 'withdrawal')
+        const ftds = deposits.filter((p: any) => p.is_first_deposit)
+        const successfulFtds = ftds.filter((p: any) => p.success)
 
-        const totalDeposits = deposits.reduce((sum, p) => sum + p.amount_cents, 0) / 100
-        const totalWithdrawals = withdrawals.reduce((sum, p) => sum + p.amount_cents, 0) / 100
+        const totalDeposits = deposits.reduce((sum: number, p: any) => sum + (Number(p.amount_cents) || 0), 0) / 100
+        const totalWithdrawals = withdrawals.reduce((sum: number, p: any) => sum + (Number(p.amount_cents) || 0), 0) / 100
         const ngr = totalDeposits - totalWithdrawals
         const ggr = ngr * 0.95 // Assuming 5% commission rate
 
@@ -138,9 +139,9 @@ export default function ReportsTestingPage() {
           ngr,
           ggr,
           ftdCount: ftds.length,
-          ftdAmount: ftds.reduce((sum, p) => sum + p.amount_cents, 0) / 100,
+          ftdAmount: ftds.reduce((sum: number, p: any) => sum + (Number(p.amount_cents) || 0), 0) / 100,
           ftdSuccessRate: ftds.length ? (successfulFtds.length / ftds.length) * 100 : 0,
-          playerCount: new Set(data.map(p => p.user_id)).size,
+          playerCount: Array.from(new Set(list.map((p: any) => p.user_id))).length,
           averageDeposit: deposits.length ? totalDeposits / deposits.length : 0,
         })
       } catch (err) {
