@@ -622,14 +622,21 @@ export async function getBonusData(params: GetBonusDataParams): Promise<GetBonus
       .lte('created_at', endDate)
       .order('created_at', { ascending: false });
 
-    const bonusList = (bonusData && Array.isArray(bonusData)) ? bonusData : []
-    const freespinList = (freespinData && Array.isArray(freespinData)) ? freespinData : []
+    const { data: freespinData } = await supabase
+      .from('freespin_issues_view')
+      .select('*')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+      .order('created_at', { ascending: false });
+
+    const bonusList: any[] = (bonusData && Array.isArray(bonusData)) ? bonusData : []
+    const freespinList: any[] = (freespinData && Array.isArray(freespinData)) ? freespinData : []
 
     // Combine bonus and freespin data
     const combinedData = [
-      ...bonusList.map(bonus => ({ ...bonus, type: 'bonus' })),
-      ...freespinList.map(freespin => ({ ...freespin, type: 'freespin' }))
-    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      ...bonusList.map((bonus: any) => ({ ...bonus, type: 'bonus' })),
+      ...freespinList.map((freespin: any) => ({ ...freespin, type: 'freespin' }))
+    ].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     // Apply pagination
     const offset = (page - 1) * pageSize;

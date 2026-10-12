@@ -1,5 +1,37 @@
 services:
-  # Next.js React Frontend Web Service
+  # ============================================================================
+  # 1. Next.js React Frontend Web Service (Production - branch: main)
+  #    URL: https://igaming-frontend.onrender.com
+  # ============================================================================
+  - type: web
+    name: igaming-frontend
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: main
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npx next start -p $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://igaming-frontend.onrender.com
+      - key: NEXT_PUBLIC_API_URL
+        value: https://igaming-backend.onrender.com
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://omeuslijjxsqnkevybmv.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        value: sb_publishable_Ho0Cd0MOmap7yWAbMG1idg_wC3uALP2
+
+  # ============================================================================
+  # 2. Next.js React Frontend Web Service (Development)
+  #    URL: https://igaming-frontend-dev.onrender.com
+  # ============================================================================
   - type: web
     name: igaming-frontend-dev
     runtime: node
@@ -14,6 +46,8 @@ services:
         value: 20.11.0
       - key: NODE_ENV
         value: production
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://igaming-frontend-dev.onrender.com
       - key: NEXT_PUBLIC_API_URL
         value: https://igaming-backend-dev.onrender.com
       - key: DATABASE_URL
@@ -22,4 +56,3 @@ services:
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
         sync: false
-

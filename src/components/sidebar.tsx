@@ -17,6 +17,9 @@ import {
   Gift,
   Users2,
   CreditCard,
+  Sparkles,
+  ShieldCheck,
+  MessageSquare,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -24,6 +27,9 @@ import { DEFAULT_ADMIN_EMAIL } from "@/lib/constants"
 
 const navigationItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+  { icon: MessageSquare, label: "Hermes Chat", href: "/chat" },
+  { icon: Sparkles, label: "Promo Planner", href: "/promo-planner" },
+  { icon: ShieldCheck, label: "Data Accuracy", href: "/data-accuracy" },
   { icon: Users, label: "Players", href: "/players" },
   { icon: BarChart2, label: "Acquisition", href: "/acquisition" },
   { icon: LineChart, label: "Cohort Analysis", href: "/cohort-analysis" },
