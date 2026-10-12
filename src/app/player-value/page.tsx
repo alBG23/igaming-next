@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -105,23 +105,9 @@ export default function PlayerValuePage() {
     })
   }, [valuedPlayers, searchQuery, tierFilter])
 
-  useEffect(() => {
-    let active = true
-    const timeout = setTimeout(() => {
-      if (active) setLoading(false)
-    }, 4000)
 
-    fetchData().finally(() => {
-      if (active) setLoading(false)
-    })
 
-    return () => {
-      active = false
-      clearTimeout(timeout)
-    }
-  }, [dateRange])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
 
@@ -304,7 +290,23 @@ export default function PlayerValuePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateRange])
+
+  useEffect(() => {
+    let active = true
+    const timeout = setTimeout(() => {
+      if (active) setLoading(false)
+    }, 4000)
+
+    fetchData().finally(() => {
+      if (active) setLoading(false)
+    })
+
+    return () => {
+      active = false
+      clearTimeout(timeout)
+    }
+  }, [fetchData])
 
   return (
     <div className="space-y-6">

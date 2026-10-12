@@ -172,6 +172,7 @@ export default function PlayerValueMatrix() {
     if (filteredData.length > 0) {
       processPlayerValueData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredData]);
 
   const applyFilters = (currentFilter) => {

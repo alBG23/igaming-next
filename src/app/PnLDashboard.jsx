@@ -204,11 +204,13 @@ export default function PnLDashboard() {
   useEffect(() => {
     // Calculate optimal allocation on initial load and when required FTDs changes
     calculateOptimalAllocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requiredFTDs, optimizationCriteria]);
   
   // Recalculate plan score whenever allocations change
   useEffect(() => {
     recalculatePlanScore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [affiliates]);
 
   // Calculate optimal allocation based on affiliate performance and selected criteria

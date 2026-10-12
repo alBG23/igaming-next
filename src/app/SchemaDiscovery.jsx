@@ -17,7 +17,7 @@ export default function SchemaDiscovery() {
   const [copied, setCopied] = useState(false);
   const [expandedTable, setExpandedTable] = useState(null);
   
-  const databaseSchema = {
+  const databaseSchema = React.useMemo(() => ({
     players: {
       description: "Player accounts and demographic information",
       tables: [
@@ -504,7 +504,7 @@ export default function SchemaDiscovery() {
         }
       ]
     }
-  };
+  }), []);
 
   const [flatColumns, flatTables] = React.useMemo(() => {
     let allColumns = [];

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
@@ -85,11 +85,7 @@ export default function BonusesPage() {
     completionRate: 0
   })
 
-  useEffect(() => {
-    fetchData()
-  }, [dateRange])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
 
@@ -169,7 +165,11 @@ export default function BonusesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateRange])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const bonusColumns = [
     {

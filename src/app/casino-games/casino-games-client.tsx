@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
@@ -67,23 +67,9 @@ export function CasinoGamesClient() {
     rtp: 0
   })
 
-  useEffect(() => {
-    let active = true
-    const timeout = setTimeout(() => {
-      if (active) setLoading(false)
-    }, 5000)
 
-    fetchData().finally(() => {
-      if (active) setLoading(false)
-    })
 
-    return () => {
-      active = false
-      clearTimeout(timeout)
-    }
-  }, [dateRange])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
 
@@ -146,7 +132,23 @@ export function CasinoGamesClient() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateRange])
+
+  useEffect(() => {
+    let active = true
+    const timeout = setTimeout(() => {
+      if (active) setLoading(false)
+    }, 5000)
+
+    fetchData().finally(() => {
+      if (active) setLoading(false)
+    })
+
+    return () => {
+      active = false
+      clearTimeout(timeout)
+    }
+  }, [fetchData])
 
   const columns: ColumnDef<GameSession>[] = [
     {

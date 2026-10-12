@@ -142,8 +142,8 @@ export default function DashboardPage() {
         setLoading(true)
         setError(null)
 
-        const adjustedStart = currentRange.start
-        const adjustedEnd = currentRange.end
+        const adjustedStart = new Date(startKey)
+        const adjustedEnd = new Date(endKey)
 
         console.log('Query date range:', {
           start: adjustedStart.toISOString(),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
@@ -178,33 +178,105 @@ export default function PaymentsPage() {
   const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>('thisMonth')
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [selectedView, setSelectedView] = useState<'total' | 'country' | 'payment' | 'device'>('total')
-  const [date, setDate] = useState<DateRange | undefined>({
-    from: addDays(new Date(), -7),
-    to: new Date(),
-  })
 
-  const currentRange = timeRange === 'custom' && dateRange?.from && dateRange?.to
-    ? { start: dateRange.from, end: dateRange.to }
-    : TIME_RANGES[timeRange].getRange()
-
-  const fetchMetrics = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('payments_view')
-        .select('*')
-        .gte('created_at', date?.from?.toISOString() || '')
-        .lte('created_at', date?.to?.toISOString() || '')
-      if (error) throw error
-    } catch (err) {
-      console.error('Error fetching metrics:', err)
-    }
-  }
+  const currentRange = useMemo(() => {
+    return timeRange === 'custom' && dateRange?.from && dateRange?.to
+      ? { start: dateRange.from, end: dateRange.to }
+      : TIME_RANGES[timeRange].getRange()
+  }, [timeRange, dateRange])
 
   useEffect(() => {
     let active = true
     const timeout = setTimeout(() => {
       if (active) setLoading(false)
     }, 5000)
+
+    const fetchTransactions = async () => {
+      try {
+        const { data: payments, error } = await supabase
+          .from('payments_view')
+          .select('*')
+          .gte('created_at', currentRange.start.toISOString())
+          .lte('created_at', currentRange.end.toISOString())
+          .order('created_at', { ascending: false })
+          .limit(100)
+
+        if (error) {
+          console.warn('Error fetching transactions (using fallback empty list):', error.message || error)
+          if (active) setTransactions([])
+          return
+        }
+
+        const userIds = Array.from(new Set((payments || []).map((p: any) => p.user_id).filter(Boolean)))
+        const userMap = new Map<number | string, { email?: string }>()
+
+        if (userIds.length > 0) {
+          try {
+            const { data: users } = await supabase
+              .from('users_view')
+              .select('id, email')
+              .in('id', userIds)
+
+            if (users) {
+              users.forEach((u: any) => userMap.set(u.id, u))
+            }
+          } catch (uErr) {
+            console.warn('Error fetching users for transactions:', uErr)
+          }
+        }
+
+        if (active) {
+          setTransactions((payments || []).map((payment: any) => {
+            const user = userMap.get(payment.user_id)
+            return {
+              id: String(payment.id),
+              player: user?.email || (payment.user_id ? `User #${payment.user_id}` : 'Unknown'),
+              type: payment.action,
+              amount: (payment.amount_cents || 0) / 100,
+              currency: payment.currency,
+              method: payment.payment_system || payment.psp_system || 'Unknown',
+              status: payment.success ? 'success' : payment.decline_reason ? 'failed' : 'pending',
+              declineReason: payment.decline_reason,
+              affiliate: payment.affiliate?.name,
+              createdAt: payment.created_at
+            }
+          }))
+        }
+      } catch (err) {
+        console.warn('Error fetching transactions:', err)
+        if (active) setTransactions([])
+      }
+    }
+
+    const fetchReports = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('income_reports')
+          .select('*')
+          .gte('date', currentRange.start.toISOString())
+          .lte('date', currentRange.end.toISOString())
+          .order('date', { ascending: false })
+
+        if (error) {
+          console.warn('Error fetching reports (using fallback empty list):', error.message || error)
+          if (active) setReports([])
+          return
+        }
+
+        if (active) {
+          setReports((data || []).map((report: any) => ({
+            id: String(report.id),
+            date: report.date,
+            deposits: (report.deposits_sum || 0) / 100,
+            withdrawals: (report.cashouts_sum || 0) / 100,
+            successRate: report.deposits_count ? (report.first_deposits_count / report.deposits_count) * 100 : 0
+          })))
+        }
+      } catch (err) {
+        console.warn('Error fetching reports:', err)
+        if (active) setReports([])
+      }
+    }
 
     const fetchData = async () => {
       setLoading(true)
@@ -216,7 +288,7 @@ export default function PaymentsPage() {
         ])
       } catch (err) {
         console.warn('Payments fetchData error:', err)
-        setError(err instanceof Error ? err.message : 'An error occurred')
+        if (active) setError(err instanceof Error ? err.message : 'An error occurred')
       } finally {
         if (active) setLoading(false)
       }
@@ -228,95 +300,7 @@ export default function PaymentsPage() {
       active = false
       clearTimeout(timeout)
     }
-  }, [activeTab, timeRange, dateRange])
-
-  useEffect(() => {
-    fetchMetrics()
-  }, [date])
-
-  const fetchTransactions = async () => {
-    try {
-      const { data: payments, error } = await supabase
-        .from('payments_view')
-        .select('*')
-        .gte('created_at', currentRange.start.toISOString())
-        .lte('created_at', currentRange.end.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      if (error) {
-        console.warn('Error fetching transactions (using fallback empty list):', error.message || error)
-        setTransactions([])
-        return
-      }
-
-      // Fetch user emails for the transactions
-      const userIds = Array.from(new Set((payments || []).map((p: any) => p.user_id).filter(Boolean)))
-      const userMap = new Map<number | string, { email?: string }>()
-
-      if (userIds.length > 0) {
-        try {
-          const { data: users } = await supabase
-            .from('users_view')
-            .select('id, email')
-            .in('id', userIds)
-
-          if (users) {
-            users.forEach((u: any) => userMap.set(u.id, u))
-          }
-        } catch (uErr) {
-          console.warn('Error fetching users for transactions:', uErr)
-        }
-      }
-
-      setTransactions((payments || []).map((payment: any) => {
-        const user = userMap.get(payment.user_id)
-        return {
-          id: String(payment.id),
-          player: user?.email || (payment.user_id ? `User #${payment.user_id}` : 'Unknown'),
-          type: payment.action,
-          amount: (payment.amount_cents || 0) / 100,
-          currency: payment.currency,
-          method: payment.payment_system || payment.psp_system || 'Unknown',
-          status: payment.success ? 'success' : payment.decline_reason ? 'failed' : 'pending',
-          declineReason: payment.decline_reason,
-          affiliate: payment.affiliate?.name,
-          createdAt: payment.created_at
-        }
-      }))
-    } catch (err) {
-      console.warn('Error fetching transactions:', err)
-      setTransactions([])
-    }
-  }
-
-  const fetchReports = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('income_reports')
-        .select('*')
-        .gte('date', currentRange.start.toISOString())
-        .lte('date', currentRange.end.toISOString())
-        .order('date', { ascending: false })
-
-      if (error) {
-        console.warn('Error fetching reports (using fallback empty list):', error.message || error)
-        setReports([])
-        return
-      }
-
-      setReports((data || []).map((report: any) => ({
-        id: String(report.id),
-        date: report.date,
-        deposits: (report.deposits_sum || 0) / 100,
-        withdrawals: (report.cashouts_sum || 0) / 100,
-        successRate: report.deposits_count ? (report.first_deposits_count / report.deposits_count) * 100 : 0
-      })))
-    } catch (err) {
-      console.warn('Error fetching reports:', err)
-      setReports([])
-    }
-  }
+  }, [activeTab, timeRange, dateRange, currentRange.start, currentRange.end])
 
   if (loading) {
     return (

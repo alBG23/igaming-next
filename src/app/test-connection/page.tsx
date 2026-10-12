@@ -1,9 +1,5 @@
-"use client"
+import { supabase } from "@/lib/supabase"
 
-import { useState, useEffect } from "react"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { testSupabaseConnection, testAllViews, supabase } from "@/lib/supabase"
-import { AlertCircle, CheckCircle, XCircle } from "lucide-react"
 
 export const dynamic = 'force-dynamic'
 

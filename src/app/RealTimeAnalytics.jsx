@@ -88,6 +88,7 @@ export default function RealTimeAnalytics() {
         clearInterval(simulationIntervalRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Effect to update data when refresh rate changes
@@ -95,6 +96,7 @@ export default function RealTimeAnalytics() {
     if (isSimulating) {
       startSimulation();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshRate, isSimulating]);
 
   const initializeData = () => {
