@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Data Reconciliation Cron Job Endpoint
  * 
- * Invoked by automated scheduler (e.g., Vercel Cron or Azure Timer).
+ * Invoked by automated scheduler (e.g., Render Cron Job or external webhook).
  * 
  * Execution Lifecycle:
  * 1. Authenticate cron trigger token.
