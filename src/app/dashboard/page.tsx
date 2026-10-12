@@ -352,8 +352,12 @@ export default function DashboardPage() {
           </Select>
           {timeRange === 'custom' && (
             <DatePickerWithRange
-              value={{ from: customRange.start, to: customRange.end } as any}
-              onChange={(range: any) => range && setCustomRange({ start: range.from, end: range.to })}
+              value={{ from: customRange.start, to: customRange.end }}
+              onChange={(range: any) => {
+                if (range?.from && range?.to) {
+                  setCustomRange({ start: range.from, end: range.to });
+                }
+              }}
             />
           )}
         </div>

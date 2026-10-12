@@ -35,7 +35,7 @@ export default function CohortsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // supabase is already imported
+
 
   const fetchData = async () => {
     try {

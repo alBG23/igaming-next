@@ -1,54 +1,65 @@
 import { getPlayersData, getCasinoGamesData, getPaymentsData, getAffiliateReports, getGamesCatalog } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+
 export default async function TestPage() {
-  // Test players data
-  let playersResponse: { data: any[]; count: number } | null = null;
+  let playersResponse = { data: [] as any[], count: 0 };
   let playersError: string | null = null;
+  let gamesResponse = { data: [] as any[], count: 0, error: null as any };
+  let paymentsResponse = { data: [] as any[], count: 0, error: null as any };
+  let affiliateResponse = { data: [] as any[], count: 0 };
+  let affiliateError: string | null = null;
+  let catalogResponse = { data: [] as any[], count: 0 };
+  let catalogError: string | null = null;
+
   try {
-    playersResponse = await getPlayersData({
-      page: 1,
-      pageSize: 5
-    });
+    const res = await getPlayersData({ page: 1, pageSize: 5 });
+    if (res) playersResponse = res;
   } catch (err: any) {
     playersError = err.message || 'Unknown error';
+    console.warn('TestPage: players fetch skipped', err);
   }
 
-  // Test casino games data
-  const gamesResponse = await getCasinoGamesData({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    endDate: new Date().toISOString(),
-    page: 1,
-    pageSize: 5
-  });
-
-  // Test payments data
-  const paymentsResponse = await getPaymentsData({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    endDate: new Date().toISOString(),
-    page: 1,
-    pageSize: 5
-  });
-
-  // Test affiliate reports
-  let affiliateResponse: { data: any[]; count: number } | null = null;
-  let affiliateError: string | null = null;
   try {
-    affiliateResponse = await getAffiliateReports({
+    const res = await getCasinoGamesData({
       startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
       endDate: new Date().toISOString(),
       page: 1,
       pageSize: 5
     });
+    if (res) gamesResponse = res;
   } catch (err: any) {
-    affiliateError = err.message || 'Unknown error';
+    console.warn('TestPage: games fetch skipped', err);
   }
 
-  // Test games catalog
-  let catalogResponse: { data: any[]; count: number } | null = null;
-  let catalogError: string | null = null;
   try {
-    catalogResponse = await getGamesCatalog({
+    const res = await getPaymentsData({
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      endDate: new Date().toISOString(),
+      page: 1,
+      pageSize: 5
+    });
+    if (res) paymentsResponse = res;
+  } catch (err: any) {
+    console.warn('TestPage: payments fetch skipped', err);
+  }
+
+  try {
+    const res = await getAffiliateReports({
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      endDate: new Date().toISOString(),
+      page: 1,
+      pageSize: 5
+    });
+    if (res) affiliateResponse = res;
+  } catch (err: any) {
+    affiliateError = err.message || 'Unknown error';
+    console.warn('TestPage: affiliate fetch skipped', err);
+  }
+
+  try {
+    const res = await getGamesCatalog({
       page: 1,
       pageSize: 5,
       filters: {
@@ -56,8 +67,10 @@ export default async function TestPage() {
         category: undefined
       }
     });
+    if (res) catalogResponse = res;
   } catch (err: any) {
     catalogError = err.message || 'Unknown error';
+    console.warn('TestPage: catalog fetch skipped', err);
   }
 
   return (
@@ -72,9 +85,9 @@ export default async function TestPage() {
             <p className="text-red-500">Error: {playersError}</p>
           ) : (
             <div>
-              <p>Total Players: {playersResponse?.count ?? 0}</p>
+              <p>Total Players: {playersResponse.count}</p>
               <div className="mt-4">
-                {playersResponse?.data.map((player: any) => (
+                {playersResponse.data.map((player: any) => (
                   <div key={player.id} className="border-b py-2">
                     <p>ID: {player.id}</p>
                     <p>Created: {formatDate(player.created_at)}</p>
@@ -134,9 +147,9 @@ export default async function TestPage() {
             <p className="text-red-500">Error: {affiliateError}</p>
           ) : (
             <div>
-              <p>Total Reports: {affiliateResponse?.count ?? 0}</p>
+              <p>Total Reports: {affiliateResponse.count}</p>
               <div className="mt-4">
-                {affiliateResponse?.data.map((report: any) => (
+                {affiliateResponse.data.map((report: any) => (
                   <div key={report.id} className="border-b py-2">
                     <p>ID: {report.id}</p>
                     <p>Date: {formatDate(report.date)}</p>
@@ -155,12 +168,12 @@ export default async function TestPage() {
             <p className="text-red-500">Error: {catalogError}</p>
           ) : (
             <div>
-              <p>Total Games: {catalogResponse?.count ?? 0}</p>
+              <p>Total Games: {catalogResponse.count}</p>
               <div className="mt-4">
-                {catalogResponse?.data.map((game: any) => (
+                {catalogResponse.data.map((game: any) => (
                   <div key={game.id} className="border-b py-2">
                     <p>ID: {game.id}</p>
-                    <p>Title: {game.title}</p>
+                    <p>Title: {game.title || game.name}</p>
                     <p>Provider: {game.provider}</p>
                   </div>
                 ))}
@@ -171,4 +184,4 @@ export default async function TestPage() {
       </div>
     </div>
   );
-} 
+}

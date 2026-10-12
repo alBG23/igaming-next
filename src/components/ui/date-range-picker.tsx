@@ -16,17 +16,26 @@ import {
 interface DatePickerWithRangeProps {
   value?: any
   onChange?: (date: any) => void
+  date?: DateRange
+  setDate?: (date: DateRange | undefined) => void
+  onDateChange?: (date: DateRange | undefined) => void
 }
 
 export function DatePickerWithRange({
   value,
-  onChange
+  onChange,
+  date,
+  setDate,
+  onDateChange,
 }: DatePickerWithRangeProps) {
-  const dateRange: DateRange | undefined = value
-    ? {
-        from: value.from || value.start,
-        to: value.to || value.end,
-      }
+  const rawValue = value || date
+  const dateRange: DateRange | undefined = rawValue
+    ? ('start' in rawValue || 'end' in rawValue)
+      ? {
+          from: rawValue.from || rawValue.start,
+          to: rawValue.to || rawValue.end,
+        }
+      : rawValue
     : undefined
 
   const handleSelect = (range: DateRange | undefined) => {
@@ -40,6 +49,8 @@ export function DatePickerWithRange({
         onChange(range)
       }
     }
+    if (setDate) setDate(range)
+    if (onDateChange) onDateChange(range)
   }
 
   return (
@@ -85,4 +96,3 @@ export function DatePickerWithRange({
 }
 
 export const DateRangePicker = DatePickerWithRange;
- 

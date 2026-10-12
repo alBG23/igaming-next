@@ -27,7 +27,8 @@ import {
   PlusCircle,
   RefreshCw,
   XCircle,
-  BrainCircuit
+  BrainCircuit,
+  ShieldCheck
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,6 +37,7 @@ import TenantConfig from '../components/admin/TenantConfig';
 import SupportTickets from '../components/admin/SupportTickets';
 import KnowledgeCurator from '../components/admin/KnowledgeCurator';
 import TenantSecurityDashboard from '@/components/admin/TenantSecurityDashboard';
+import DataAccuracyDashboard from '@/components/admin/DataAccuracyDashboard';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('users');
@@ -168,7 +170,7 @@ export default function Admin() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full grid grid-cols-8">
+            <TabsList className="w-full grid grid-cols-9">
               <TabsTrigger value="users" className="flex items-center gap-2">
                 <Users className="h-4 w-4" /> Users
               </TabsTrigger>
@@ -192,6 +194,9 @@ export default function Admin() {
               </TabsTrigger>
               <TabsTrigger value="support-tickets" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" /> Support
+              </TabsTrigger>
+              <TabsTrigger value="accuracy" className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" /> Data Accuracy
               </TabsTrigger>
             </TabsList>
             
@@ -805,6 +810,10 @@ export default function Admin() {
 
             <TabsContent value="support-tickets" className="mt-6">
               <SupportTickets />
+            </TabsContent>
+
+            <TabsContent value="accuracy" className="space-y-4 mt-6">
+              <DataAccuracyDashboard />
             </TabsContent>
           </Tabs>
         </div>
