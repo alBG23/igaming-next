@@ -247,7 +247,7 @@ export default function DataAccuracyDashboard() {
                 The Plan: How We Guarantee Data Accuracy & Safe Healing
               </CardTitle>
             </div>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={() => setShowPlanDetails(!showPlanDetails)}>
               {showPlanDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </div>
