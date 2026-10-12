@@ -141,4 +141,36 @@ test.describe('Full Application Feature Interactivity & Build Stability Suite', 
       await exportBtn.click();
     }
   });
+
+  test('verifies User Feedback Widget opens, allows category switching, and submits suggestions', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Find and open floating feedback trigger
+    const feedbackTrigger = page.getByRole('button', { name: /Feedback & Ideas/i });
+    await expect(feedbackTrigger).toBeVisible();
+    await feedbackTrigger.click();
+
+    // Verify modal header is visible
+    await expect(page.getByText('Help Us Improve Maximoos')).toBeVisible();
+
+    // Switch category to Feature Idea or Bug Report
+    const featureCatBtn = page.getByRole('button', { name: /Feature Idea/i });
+    if (await featureCatBtn.isVisible()) {
+      await featureCatBtn.click();
+    }
+
+    // Type a test feedback message
+    const textarea = page.getByPlaceholder(/Describe what you were trying to accomplish/i);
+    await expect(textarea).toBeVisible();
+    await textarea.fill('E2E automated improvement suggestion: add real-time GGR velocity alerts.');
+
+    // Submit feedback
+    const submitBtn = page.getByRole('button', { name: /Submit Improvement/i });
+    await expect(submitBtn).toBeVisible();
+    await submitBtn.click();
+
+    // Verify submission thank you screen
+    await expect(page.getByText('Thank You for Your Feedback!')).toBeVisible();
+  });
 });

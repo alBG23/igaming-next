@@ -27,10 +27,13 @@ import {
   ServerCrash,
   HardDrive,
   Cpu,
-  Shield
+  Shield,
+  Sparkles
 } from "lucide-react";
 
 import UserSessionMonitor from '../components/security/UserSessionMonitor';
+import GeminiLogFixerWidget from '../components/diagnostics/GeminiLogFixerWidget';
+
 
 export default function PlatformHealth() {
   const [integrations, setIntegrations] = useState([]);
@@ -368,7 +371,12 @@ export default function PlatformHealth() {
             <TabsTrigger value="system">System Metrics</TabsTrigger>
             <TabsTrigger value="dataflow">Data Flow</TabsTrigger>
             <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="gemini-autofix" className="flex items-center gap-1.5 font-semibold text-indigo-600">
+              <Sparkles className="h-3.5 w-3.5" />
+              Gemini AI Auto-Fix
+            </TabsTrigger>
           </TabsList>
+
           
           <TabsContent value="integrations" className="space-y-6">
             <Card>
@@ -787,9 +795,17 @@ export default function PlatformHealth() {
                 </ScrollArea>
               </CardContent>
             </Card>
+            <div className="mt-6">
+              <GeminiLogFixerWidget />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="gemini-autofix" className="space-y-6">
+            <GeminiLogFixerWidget />
           </TabsContent>
         </Tabs>
       </div>
     </div>
   );
+
 }

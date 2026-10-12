@@ -27,4 +27,9 @@
    - Dummy buttons and empty callbacks (`onClick={() => {}}`) are prohibited.
    - Enforce with `npm run check:interactive` and in `check-build`.
 
+9. **Verification Before Suggesting Fixes Policy (MANDATORY)**:
+   - Always run, execute, and verify fixes locally before presenting or suggesting them for review.
+   - Run type checks, linters, pre-commit checks, or relevant test suites to ensure the solution passes cleanly.
+   - Never speculate or suggest an untested fix. Verify it first, confirm it works, and only then present for review.
+
 
