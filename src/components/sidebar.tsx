@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { DEFAULT_ADMIN_EMAIL } from "@/lib/constants"
 
 const navigationItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -88,7 +89,7 @@ export function Sidebar() {
             <div className="flex flex-col">
               <span className="text-sm font-medium">Admin</span>
               <span className="text-xs text-muted-foreground">
-                admin@example.com
+                {DEFAULT_ADMIN_EMAIL}
               </span>
             </div>
           )}

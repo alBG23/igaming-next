@@ -1,0 +1,80 @@
+#!/usr/bin/env sh
+# graphify-checkout-hook-start
+# Auto-rebuilds the knowledge graph (code only) when switching branches.
+# Installed for Bright workspace (igaming-next / igaming-backend)
+
+PREV_HEAD=$1
+NEW_HEAD=$2
+BRANCH_SWITCH=$3
+
+# Only run on branch switches, not file checkouts
+if [ "$BRANCH_SWITCH" != "1" ]; then
+    exit 0
+fi
+
+if [ "$SKIP_GRAPHIFY" = "1" ] || [ "$SKIP_GRAPHIFY" = "true" ]; then
+    exit 0
+fi
+
+# Skip during rebase/merge/cherry-pick
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
+[ -d "$GIT_DIR/rebase-merge" ] && exit 0
+[ -d "$GIT_DIR/rebase-apply" ] && exit 0
+[ -f "$GIT_DIR/MERGE_HEAD" ] && exit 0
+[ -f "$GIT_DIR/CHERRY_PICK_HEAD" ] && exit 0
+
+# Detect workspace root containing graphify-out
+CURRENT_DIR="$(pwd)"
+WORKSPACE_ROOT=""
+CHECK_DIR="$CURRENT_DIR"
+while [ "$CHECK_DIR" != "/" ] && [ -n "$CHECK_DIR" ]; do
+    if [ -d "$CHECK_DIR/graphify-out" ]; then
+        WORKSPACE_ROOT="$CHECK_DIR"
+        break
+    fi
+    CHECK_DIR="$(dirname "$CHECK_DIR")"
+done
+
+if [ -z "$WORKSPACE_ROOT" ]; then
+    WORKSPACE_ROOT="$CURRENT_DIR"
+fi
+
+if [ ! -d "$WORKSPACE_ROOT/graphify-out" ]; then
+    exit 0
+fi
+
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+GRAPHIFY_BIN=$(command -v graphify 2>/dev/null)
+if [ -n "$GRAPHIFY_BIN" ]; then
+    echo "⚡ [graphify hook] Branch switched — updating knowledge graph for $WORKSPACE_ROOT..."
+    if [ "$GRAPHIFY_ASYNC" = "1" ]; then
+        (cd "$WORKSPACE_ROOT" && "$GRAPHIFY_BIN" update "$WORKSPACE_ROOT" >/dev/null 2>&1 &)
+    else
+        (cd "$WORKSPACE_ROOT" && "$GRAPHIFY_BIN" update "$WORKSPACE_ROOT")
+    fi
+    exit 0
+fi
+
+PIPX_PY="$HOME/.local/pipx/venvs/graphifyy/bin/python"
+if [ -x "$PIPX_PY" ]; then
+    echo "⚡ [graphify hook] Branch switched — updating knowledge graph for $WORKSPACE_ROOT via pipx..."
+    if [ "$GRAPHIFY_ASYNC" = "1" ]; then
+        (cd "$WORKSPACE_ROOT" && "$PIPX_PY" -m graphify update "$WORKSPACE_ROOT" >/dev/null 2>&1 &)
+    else
+        (cd "$WORKSPACE_ROOT" && "$PIPX_PY" -m graphify update "$WORKSPACE_ROOT")
+    fi
+    exit 0
+fi
+
+if command -v python3 >/dev/null 2>&1 && python3 -c "import graphify" 2>/dev/null; then
+    echo "⚡ [graphify hook] Branch switched — updating knowledge graph for $WORKSPACE_ROOT via python3..."
+    if [ "$GRAPHIFY_ASYNC" = "1" ]; then
+        (cd "$WORKSPACE_ROOT" && python3 -m graphify update "$WORKSPACE_ROOT" >/dev/null 2>&1 &)
+    else
+        (cd "$WORKSPACE_ROOT" && python3 -m graphify update "$WORKSPACE_ROOT")
+    fi
+    exit 0
+fi
+
+# graphify-checkout-hook-end

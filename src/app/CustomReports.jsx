@@ -6,14 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Search, 
-  Database, 
+import {
+  Search,
+  Database,
   Save,
-  DownloadCloud, 
-  Plus, 
-  FileText, 
-  Table as TableIcon, 
+  DownloadCloud,
+  Plus,
+  FileText,
+  Table as TableIcon,
   Code,
   ListFilter,
   ArrowUpDown,
@@ -38,6 +38,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { DEFAULT_ADMIN_EMAIL } from '@/lib/constants';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -63,56 +64,56 @@ export default function CustomReports() {
       content: 'Hello! I can help you create custom reports. What kind of data would you like to analyze?'
     }
   ]);
-  
+
   const [selectedTables, setSelectedTables] = useState([]);
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [filters, setFilters] = useState([]);
   const [sortBy, setSortBy] = useState([]);
   const [previewData, setPreviewData] = useState(null);
   const [savedReports, setSavedReports] = useState([
-    { 
-      id: 'saved1', 
-      name: 'Player Deposit Analysis', 
+    {
+      id: 'saved1',
+      name: 'Player Deposit Analysis',
       description: 'Track deposit patterns by payment method',
       created: '2023-05-10',
-      creator: 'admin@example.com',
+      creator: DEFAULT_ADMIN_EMAIL,
       lastRun: '2023-06-01',
       favorite: true
     },
-    { 
-      id: 'saved2', 
-      name: 'Affiliate Performance Report', 
+    {
+      id: 'saved2',
+      name: 'Affiliate Performance Report',
       description: 'Compare affiliate conversion rates and ROI',
       created: '2023-04-15',
-      creator: 'admin@example.com',
+      creator: DEFAULT_ADMIN_EMAIL,
       lastRun: '2023-05-28',
       favorite: false
     },
-    { 
-      id: 'saved3', 
-      name: 'User Retention by GEO', 
+    {
+      id: 'saved3',
+      name: 'User Retention by GEO',
       description: 'Analyze player retention rates across different regions',
       created: '2023-03-22',
-      creator: 'analyst@example.com',
+      creator: DEFAULT_ADMIN_EMAIL,
       lastRun: '2023-05-15',
       favorite: true
     }
   ]);
   const [showExplorer, setShowExplorer] = useState(true);
-  
+
   const availableTables = [
     { id: 'users_view', name: 'users_view', category: 'user', columns: 13 },
     { id: 'profiles_view', name: 'profiles_view', category: 'user', columns: 25 },
     { id: 'payments_view', name: 'payments_view', category: 'financial', columns: 43 },
     { id: 'traffic_reports', name: 'traffic_reports', category: 'analytics', columns: 13 },
-    { id: 'casino_games_view',name: 'casino_games_view', category: 'gaming', columns: 12 },
+    { id: 'casino_games_view', name: 'casino_games_view', category: 'gaming', columns: 12 },
     { id: 'bonus_issues_view', name: 'bonus_issues_view', category: 'gaming', columns: 25 },
     { id: 'payment_systems_view', name: 'payment_systems_view', category: 'financial', columns: 14 },
     { id: 'tournament_players_view', name: 'tournament_players_view', category: 'gaming', columns: 11 },
     { id: 'freespin_issues_view', name: 'freespin_issues_view', category: 'gaming', columns: 19 },
     { id: 'phones_view', name: 'phones_view', category: 'user', columns: 6 }
   ];
-  
+
   const tablesWithColumns = {
     'users_view': [
       { id: 'users_view.id', name: 'id', type: 'bigint', table: 'users_view' },
@@ -159,16 +160,16 @@ export default function CustomReports() {
       { id: 'casino_games_view.rtp', name: 'rtp', type: 'decimal', table: 'casino_games_view' }
     ]
   };
-  
+
   const handleAIPrompt = async () => {
     if (!aiPrompt.trim()) return;
-    
+
     const newMessage = { role: 'user', content: aiPrompt };
     setAiConversation([...aiConversation, newMessage]);
-    
+
     setAiResponding(true);
     setAiPrompt('');
-    
+
     try {
       const response = await InvokeLLM({
         prompt: `You're an iGaming analytics expert. Help create a custom report based on: "${aiPrompt}".
@@ -176,12 +177,12 @@ export default function CustomReports() {
                 Respond with a helpful, detailed explanation of what report would address this need.`,
         add_context_from_internet: false
       });
-      
+
       setAiConversation(prev => [...prev, { role: 'assistant', content: response }]);
-      
+
       const suggestionPrompt = `Based on the request "${aiPrompt}", generate 3 SQL queries that would be helpful. 
                                 Format as JSON array of objects with "title" and "query" properties.`;
-      
+
       const suggestionsResponse = await InvokeLLM({
         prompt: suggestionPrompt,
         response_json_schema: {
@@ -200,25 +201,25 @@ export default function CustomReports() {
           }
         }
       });
-      
+
       if (suggestionsResponse && suggestionsResponse.suggestions) {
         setAiSuggestions(suggestionsResponse.suggestions);
       }
-      
+
     } catch (error) {
       console.error("Error getting AI response:", error);
-      setAiConversation(prev => [...prev, { 
-        role: 'assistant', 
-        content: "I'm sorry, I encountered an error processing your request. Please try again." 
+      setAiConversation(prev => [...prev, {
+        role: 'assistant',
+        content: "I'm sorry, I encountered an error processing your request. Please try again."
       }]);
     }
-    
+
     setAiResponding(false);
   };
-  
+
   const handleRunReport = () => {
     setIsLoading(true);
-    
+
     setTimeout(() => {
       const mockData = [];
       for (let i = 0; i < 30; i++) {
@@ -254,16 +255,16 @@ export default function CustomReports() {
         });
         mockData.push(row);
       }
-      
+
       setPreviewData(mockData);
       setShowPreview(true);
       setIsLoading(false);
     }, 1500);
   };
-  
+
   const handleSQLRun = () => {
     setIsLoading(true);
-    
+
     setTimeout(() => {
       const mockData = [];
       for (let i = 0; i < 20; i++) {
@@ -274,28 +275,28 @@ export default function CustomReports() {
           suspended: Math.random() > 0.8
         });
       }
-      
+
       setPreviewData(mockData);
       setShowPreview(true);
       setIsLoading(false);
     }, 1500);
   };
-  
+
   const handleSaveReport = () => {
     const newReport = {
       id: `report-${Date.now()}`,
       name: reportName,
       description: 'Custom report created by drag & drop builder',
       created: new Date().toISOString().split('T')[0],
-      creator: 'admin@example.com',
+      creator: DEFAULT_ADMIN_EMAIL,
       lastRun: new Date().toISOString().split('T')[0],
       favorite: false
     };
-    
+
     setSavedReports([newReport, ...savedReports]);
     alert(`Report "${reportName}" has been saved.`);
   };
-  
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -306,7 +307,7 @@ export default function CustomReports() {
               Build and analyze custom reports from your gaming data
             </p>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <div className="relative">
               <Input
@@ -316,18 +317,18 @@ export default function CustomReports() {
                 placeholder="Report name"
               />
               {isEditing ? (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="absolute right-0 top-0 h-full"
                   onClick={() => setIsEditing(false)}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="absolute right-0 top-0 h-full"
                   onClick={handleSaveReport}
                 >
@@ -337,7 +338,7 @@ export default function CustomReports() {
             </div>
           </div>
         </div>
-        
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="builder" className="flex items-center gap-2">
@@ -357,7 +358,7 @@ export default function CustomReports() {
               Saved Reports
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="builder">
             <div className="grid grid-cols-1 gap-6">
               <DraggableReportBuilder
@@ -375,7 +376,7 @@ export default function CustomReports() {
               />
             </div>
           </TabsContent>
-          
+
           <TabsContent value="sql">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -398,7 +399,7 @@ export default function CustomReports() {
                     onChange={(e) => setSqlQuery(e.target.value)}
                     className="font-mono min-h-[200px]"
                   />
-                  
+
                   <div className="flex justify-between">
                     <div className="flex gap-2">
                       <Select defaultValue="100">
@@ -412,7 +413,7 @@ export default function CustomReports() {
                           <SelectItem value="5000">5,000 rows</SelectItem>
                         </SelectContent>
                       </Select>
-                      
+
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -428,7 +429,7 @@ export default function CustomReports() {
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    
+
                     <Button onClick={handleSQLRun}>
                       <Play className="h-4 w-4 mr-2" />
                       Run Query
@@ -438,7 +439,7 @@ export default function CustomReports() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="ai">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card className="lg:col-span-2">
@@ -451,29 +452,28 @@ export default function CustomReports() {
                 <CardContent className="p-0">
                   <ScrollArea className="h-[400px] p-4">
                     {aiConversation.map((message, index) => (
-                      <div 
+                      <div
                         key={index}
                         className={`mb-4 ${message.role === 'user' ? 'text-right' : ''}`}
                       >
-                        <div 
-                          className={`inline-block max-w-[85%] rounded-lg px-4 py-2 ${
-                            message.role === 'user' 
-                              ? 'bg-indigo-600 text-white' 
-                              : 'bg-gray-100 text-gray-900'
-                          }`}
+                        <div
+                          className={`inline-block max-w-[85%] rounded-lg px-4 py-2 ${message.role === 'user'
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-900'
+                            }`}
                         >
                           {message.content}
                         </div>
                       </div>
                     ))}
-                    
+
                     {aiResponding && (
                       <div className="mb-4">
                         <div className="inline-block rounded-lg px-4 py-2 bg-gray-100">
                           <div className="flex space-x-2 items-center">
                             <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"></div>
-                            <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                            <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                            <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                           </div>
                         </div>
                       </div>
@@ -503,7 +503,7 @@ export default function CustomReports() {
                   </div>
                 </CardFooter>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>AI Suggestions</CardTitle>
@@ -536,8 +536,8 @@ export default function CustomReports() {
                                 {suggestion.query}
                               </pre>
                               <div className="mt-2 flex justify-end">
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   onClick={() => {
                                     setSqlQuery(suggestion.query);
                                     setActiveTab('sql');
@@ -556,7 +556,7 @@ export default function CustomReports() {
               </Card>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="saved">
             <Card>
               <CardHeader>
@@ -579,7 +579,7 @@ export default function CustomReports() {
                       Create New
                     </Button>
                   </div>
-                  
+
                   <div className="mt-4">
                     <Table>
                       <TableHeader>
@@ -632,7 +632,7 @@ export default function CustomReports() {
             </Card>
           </TabsContent>
         </Tabs>
-        
+
         {isLoading && (
           <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
             <Card className="w-[300px]">
@@ -648,7 +648,7 @@ export default function CustomReports() {
             </Card>
           </div>
         )}
-        
+
         {showPreview && previewData && !isLoading && (
           <Card className="mt-6">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -682,7 +682,7 @@ export default function CustomReports() {
                         <TableRow key={rowIndex}>
                           {Object.values(row).map((value, cellIndex) => (
                             <TableCell key={cellIndex}>
-                              {typeof value === 'boolean' 
+                              {typeof value === 'boolean'
                                 ? value ? 'Yes' : 'No'
                                 : String(value)}
                             </TableCell>

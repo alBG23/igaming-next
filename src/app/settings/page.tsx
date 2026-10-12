@@ -39,14 +39,15 @@ import {
 } from 'lucide-react';
 import KnowledgeCurator from '@/components/admin/KnowledgeCurator';
 import SupportTickets from '@/components/admin/SupportTickets';
+import { DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_NAME } from '@/lib/constants';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   // General Settings State
-  const [fullName, setFullName] = useState('Admin Operator');
-  const [email, setEmail] = useState('admin@example.com');
+  const [fullName, setFullName] = useState(DEFAULT_ADMIN_NAME);
+  const [email, setEmail] = useState(DEFAULT_ADMIN_EMAIL);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [timezone, setTimezone] = useState('UTC');
@@ -159,7 +160,7 @@ export default function SettingsPage() {
       try {
         const existing = JSON.parse(localStorage.getItem('igaming_settings_security') || '{}');
         localStorage.setItem('igaming_settings_security', JSON.stringify({ ...existing, twoFactorEnabled: false }));
-      } catch {}
+      } catch { }
       showNotification('info', 'Two-Factor Authentication has been disabled.');
     }
   };
@@ -179,7 +180,7 @@ export default function SettingsPage() {
     try {
       const existing = JSON.parse(localStorage.getItem('igaming_settings_security') || '{}');
       localStorage.setItem('igaming_settings_security', JSON.stringify({ ...existing, twoFactorEnabled: true }));
-    } catch {}
+    } catch { }
 
     showNotification('success', 'Two-Factor Authentication activated successfully!');
   };
@@ -263,13 +264,12 @@ export default function SettingsPage() {
       {feedback && (
         <div
           role="alert"
-          className={`flex items-center justify-between p-4 rounded-lg shadow-sm transition-all duration-300 ${
-            feedback.type === 'success'
+          className={`flex items-center justify-between p-4 rounded-lg shadow-sm transition-all duration-300 ${feedback.type === 'success'
               ? 'bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200'
               : feedback.type === 'error'
-              ? 'bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-200'
-              : 'bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-200'
-          }`}
+                ? 'bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-200'
+                : 'bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-200'
+            }`}
         >
           <div className="flex items-center gap-2">
             {feedback.type === 'success' ? (
@@ -340,7 +340,7 @@ export default function SettingsPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@example.com"
+                    placeholder={DEFAULT_ADMIN_EMAIL}
                     required
                   />
                 </div>
