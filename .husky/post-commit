@@ -1,0 +1,75 @@
+#!/usr/bin/env sh
+# graphify-hook-start
+# Auto-rebuilds the knowledge graph after each commit (code files only, no LLM needed).
+# Installed for Bright workspace (igaming-next / igaming-backend)
+
+if [ "$SKIP_GRAPHIFY" = "1" ] || [ "$SKIP_GRAPHIFY" = "true" ]; then
+    exit 0
+fi
+
+# Skip during rebase/merge/cherry-pick to avoid blocking git workflows
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
+[ -d "$GIT_DIR/rebase-merge" ] && exit 0
+[ -d "$GIT_DIR/rebase-apply" ] && exit 0
+[ -f "$GIT_DIR/MERGE_HEAD" ] && exit 0
+[ -f "$GIT_DIR/CHERRY_PICK_HEAD" ] && exit 0
+
+CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD 2>/dev/null)
+if [ -z "$CHANGED" ]; then
+    exit 0
+fi
+
+# Detect workspace root containing graphify-out
+CURRENT_DIR="$(pwd)"
+WORKSPACE_ROOT=""
+CHECK_DIR="$CURRENT_DIR"
+while [ "$CHECK_DIR" != "/" ] && [ -n "$CHECK_DIR" ]; do
+    if [ -d "$CHECK_DIR/graphify-out" ]; then
+        WORKSPACE_ROOT="$CHECK_DIR"
+        break
+    fi
+    CHECK_DIR="$(dirname "$CHECK_DIR")"
+done
+
+if [ -z "$WORKSPACE_ROOT" ]; then
+    WORKSPACE_ROOT="$CURRENT_DIR"
+fi
+
+# Ensure standard path for graphify / pipx / local python
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# Detect graphify executable or python module
+GRAPHIFY_BIN=$(command -v graphify 2>/dev/null)
+if [ -n "$GRAPHIFY_BIN" ]; then
+    echo "⚡ [graphify hook] Updating knowledge graph for $WORKSPACE_ROOT..."
+    if [ "$GRAPHIFY_ASYNC" = "1" ]; then
+        (cd "$WORKSPACE_ROOT" && "$GRAPHIFY_BIN" update "$WORKSPACE_ROOT" >/dev/null 2>&1 &)
+    else
+        (cd "$WORKSPACE_ROOT" && "$GRAPHIFY_BIN" update "$WORKSPACE_ROOT")
+    fi
+    exit 0
+fi
+
+# Fallback: check pipx virtualenv interpreter or python3 with graphify installed
+PIPX_PY="$HOME/.local/pipx/venvs/graphifyy/bin/python"
+if [ -x "$PIPX_PY" ]; then
+    echo "⚡ [graphify hook] Updating knowledge graph for $WORKSPACE_ROOT via pipx..."
+    if [ "$GRAPHIFY_ASYNC" = "1" ]; then
+        (cd "$WORKSPACE_ROOT" && "$PIPX_PY" -m graphify update "$WORKSPACE_ROOT" >/dev/null 2>&1 &)
+    else
+        (cd "$WORKSPACE_ROOT" && "$PIPX_PY" -m graphify update "$WORKSPACE_ROOT")
+    fi
+    exit 0
+fi
+
+if command -v python3 >/dev/null 2>&1 && python3 -c "import graphify" 2>/dev/null; then
+    echo "⚡ [graphify hook] Updating knowledge graph for $WORKSPACE_ROOT via python3..."
+    if [ "$GRAPHIFY_ASYNC" = "1" ]; then
+        (cd "$WORKSPACE_ROOT" && python3 -m graphify update "$WORKSPACE_ROOT" >/dev/null 2>&1 &)
+    else
+        (cd "$WORKSPACE_ROOT" && python3 -m graphify update "$WORKSPACE_ROOT")
+    fi
+    exit 0
+fi
+
+# graphify-hook-end

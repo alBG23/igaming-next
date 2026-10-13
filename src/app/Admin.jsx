@@ -38,6 +38,7 @@ import SupportTickets from '../components/admin/SupportTickets';
 import KnowledgeCurator from '../components/admin/KnowledgeCurator';
 import TenantSecurityDashboard from '@/components/admin/TenantSecurityDashboard';
 import DataAccuracyDashboard from '@/components/admin/DataAccuracyDashboard';
+import { DEFAULT_ADMIN_EMAIL } from '@/lib/constants';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('users');
@@ -47,7 +48,7 @@ export default function Admin() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState([]);
-  
+
   // Mock user data
   const [users, setUsers] = useState([
     { id: 1, name: 'John Smith', email: 'john@example.com', role: 'admin', status: 'active', lastLogin: '2023-07-20T10:30:00Z' },
@@ -56,7 +57,7 @@ export default function Admin() {
     { id: 4, name: 'Sarah Wilson', email: 'sarah@partner.com', role: 'client', status: 'inactive', lastLogin: '2023-06-30T16:20:00Z' },
     { id: 5, name: 'David Lee', email: 'david@example.com', role: 'admin', status: 'active', lastLogin: '2023-07-21T11:05:00Z' }
   ]);
-  
+
   // System settings
   const [settings, setSettings] = useState({
     security: {
@@ -88,53 +89,53 @@ export default function Admin() {
       backupFrequency: 'daily'
     }
   });
-  
+
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
     role: 'client'
   });
-  
+
   useEffect(() => {
     // Filter users based on search term
-    const filtered = users.filter(user => 
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const filtered = users.filter(user =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredUsers(filtered);
   }, [searchTerm, users]);
-  
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleString();
   };
-  
+
   const handleAddUser = () => {
     setIsLoading(true);
-    
+
     // Simulate API call
     setTimeout(() => {
       const newId = users.length > 0 ? Math.max(...users.map(user => user.id)) + 1 : 1;
-      
+
       const userToAdd = {
         ...newUser,
         id: newId,
         status: 'active',
         lastLogin: null
       };
-      
+
       setUsers([...users, userToAdd]);
       setNewUser({ name: '', email: '', role: 'client' });
       setShowAddUserDialog(false);
       setIsLoading(false);
     }, 1000);
   };
-  
+
   const handleDeleteUser = () => {
     if (!userToDelete) return;
-    
+
     setIsLoading(true);
-    
+
     // Simulate API call
     setTimeout(() => {
       const updatedUsers = users.filter(user => user.id !== userToDelete.id);
@@ -144,7 +145,7 @@ export default function Admin() {
       setIsLoading(false);
     }, 1000);
   };
-  
+
   const handleSettingChange = (category, setting, value) => {
     setSettings(prev => ({
       ...prev,
@@ -161,14 +162,14 @@ export default function Admin() {
         <div className="max-w-7xl mx-auto space-y-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-              <Shield className="mr-2 h-6 w-6 text-red-600" /> 
+              <Shield className="mr-2 h-6 w-6 text-red-600" />
               Admin Settings
             </h1>
             <p className="text-gray-500 mt-1">
               Manage users, security settings, and system configuration
             </p>
           </div>
-          
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="w-full grid grid-cols-9">
               <TabsTrigger value="users" className="flex items-center gap-2">
@@ -199,7 +200,7 @@ export default function Admin() {
                 <ShieldCheck className="h-4 w-4" /> Data Accuracy
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="users" className="space-y-4 mt-6">
               <div className="flex justify-between items-center">
                 <div className="relative w-full max-w-sm">
@@ -215,7 +216,7 @@ export default function Admin() {
                     </svg>
                   </div>
                 </div>
-                
+
                 <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
                   <DialogTrigger asChild>
                     <Button className="bg-red-600 hover:bg-red-700">
@@ -230,28 +231,28 @@ export default function Admin() {
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Full Name</Label>
-                        <Input 
-                          id="name" 
+                        <Input
+                          id="name"
                           placeholder="John Smith"
                           value={newUser.name}
-                          onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+                          onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                         />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
-                        <Input 
-                          id="email" 
+                        <Input
+                          id="email"
                           type="email"
                           placeholder="john@example.com"
                           value={newUser.email}
-                          onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                          onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                         />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="role">Role</Label>
-                        <Select 
-                          value={newUser.role} 
-                          onValueChange={(value) => setNewUser({...newUser, role: value})}
+                        <Select
+                          value={newUser.role}
+                          onValueChange={(value) => setNewUser({ ...newUser, role: value })}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select a role" />
@@ -262,7 +263,7 @@ export default function Admin() {
                           </SelectContent>
                         </Select>
                       </div>
-                      
+
                       <Alert className="bg-blue-50 border-blue-200">
                         <AlertDescription className="text-blue-800">
                           An invitation email will be sent to this user with instructions to set their password.
@@ -273,7 +274,7 @@ export default function Admin() {
                       <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
                         Cancel
                       </Button>
-                      <Button 
+                      <Button
                         className="bg-red-600 hover:bg-red-700"
                         onClick={handleAddUser}
                         disabled={!newUser.name || !newUser.email || isLoading}
@@ -293,7 +294,7 @@ export default function Admin() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-                
+
                 <Dialog open={showConfirmDeleteDialog} onOpenChange={setShowConfirmDeleteDialog}>
                   <DialogContent>
                     <DialogHeader>
@@ -301,7 +302,7 @@ export default function Admin() {
                     </DialogHeader>
                     <div className="py-4">
                       <p className="text-gray-500">
-                        Are you sure you want to delete the user <span className="font-semibold">{userToDelete?.name}</span>? 
+                        Are you sure you want to delete the user <span className="font-semibold">{userToDelete?.name}</span>?
                         This action cannot be undone.
                       </p>
                     </div>
@@ -309,7 +310,7 @@ export default function Admin() {
                       <Button variant="outline" onClick={() => setShowConfirmDeleteDialog(false)}>
                         Cancel
                       </Button>
-                      <Button 
+                      <Button
                         variant="destructive"
                         onClick={handleDeleteUser}
                         disabled={isLoading}
@@ -330,7 +331,7 @@ export default function Admin() {
                   </DialogContent>
                 </Dialog>
               </div>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>User Management</CardTitle>
@@ -373,8 +374,8 @@ export default function Admin() {
                               <Button variant="outline" size="sm">
                                 Edit
                               </Button>
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
                                 className="text-red-600 hover:text-red-700"
                                 onClick={() => {
@@ -393,7 +394,7 @@ export default function Admin() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="security" className="space-y-4 mt-6">
               <Card>
                 <CardHeader>
@@ -409,27 +410,27 @@ export default function Admin() {
                   <div className="space-y-3">
                     <h3 className="text-lg font-medium">Authentication</h3>
                     <Separator />
-                    
+
                     <div className="flex items-center justify-between py-2">
                       <div>
                         <Label htmlFor="requireMfa" className="font-medium">Require Two-Factor Authentication</Label>
                         <p className="text-sm text-gray-500">Enforce MFA for all admin accounts</p>
                       </div>
-                      <Switch 
-                        id="requireMfa" 
+                      <Switch
+                        id="requireMfa"
                         checked={settings.security.requireMfa}
                         onCheckedChange={(checked) => handleSettingChange('security', 'requireMfa', checked)}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between py-2">
                       <div className="mr-4">
                         <Label htmlFor="sessionTimeout" className="font-medium">Session Timeout (minutes)</Label>
                         <p className="text-sm text-gray-500">Automatically log out inactive users</p>
                       </div>
-                      <Select 
-                        id="sessionTimeout" 
-                        value={settings.security.sessionTimeout.toString()} 
+                      <Select
+                        id="sessionTimeout"
+                        value={settings.security.sessionTimeout.toString()}
                         onValueChange={(value) => handleSettingChange('security', 'sessionTimeout', parseInt(value))}
                       >
                         <SelectTrigger className="w-[120px]">
@@ -443,15 +444,15 @@ export default function Admin() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="flex items-center justify-between py-2">
                       <div className="mr-4">
                         <Label htmlFor="passwordPolicy" className="font-medium">Password Policy</Label>
                         <p className="text-sm text-gray-500">Set minimum password complexity requirements</p>
                       </div>
-                      <Select 
-                        id="passwordPolicy" 
-                        value={settings.security.passwordPolicy} 
+                      <Select
+                        id="passwordPolicy"
+                        value={settings.security.passwordPolicy}
                         onValueChange={(value) => handleSettingChange('security', 'passwordPolicy', value)}
                       >
                         <SelectTrigger className="w-[120px]">
@@ -464,34 +465,34 @@ export default function Admin() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-3 py-2">
                       <div className="flex items-center justify-between">
                         <div>
                           <Label htmlFor="ipRestriction" className="font-medium">IP Address Restriction</Label>
                           <p className="text-sm text-gray-500">Limit access to specific IP addresses</p>
                         </div>
-                        <Switch 
-                          id="ipRestriction" 
+                        <Switch
+                          id="ipRestriction"
                           checked={settings.security.ipRestriction}
                           onCheckedChange={(checked) => handleSettingChange('security', 'ipRestriction', checked)}
                         />
                       </div>
-                      
+
                       {settings.security.ipRestriction && (
                         <div className="mt-2 space-y-2">
                           <Label htmlFor="allowedIps" className="text-sm">Allowed IP Addresses</Label>
                           <p className="text-xs text-gray-500 mb-1">Enter comma-separated IP addresses or CIDR ranges</p>
-                          <Input 
-                            id="allowedIps" 
-                            placeholder="192.168.1.1, 10.0.0.0/24" 
+                          <Input
+                            id="allowedIps"
+                            placeholder="192.168.1.1, 10.0.0.0/24"
                             value={settings.security.allowedIps}
                             onChange={(e) => handleSettingChange('security', 'allowedIps', e.target.value)}
                           />
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="space-y-3 py-2 border-t pt-4 mt-4">
                       <h3 className="text-lg font-medium">Advanced Bot & Scraping Protection (P4)</h3>
                       <div className="flex items-center justify-between">
@@ -499,14 +500,14 @@ export default function Admin() {
                           <Label htmlFor="botProtection" className="font-medium">Strict Rate Limiting & Bot Mitigation</Label>
                           <p className="text-sm text-gray-500">Enable algorithmic bot mitigation, header validation, and token-based challenges</p>
                         </div>
-                        <Switch 
-                          id="botProtection" 
+                        <Switch
+                          id="botProtection"
                           checked={settings.security.botProtection}
                           onCheckedChange={(checked) => handleSettingChange('security', 'botProtection', checked)}
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-3 py-2 border-t pt-4 mt-4">
                       <h3 className="text-lg font-medium">Geofencing & Regional Access</h3>
                       <div className="flex items-center justify-between">
@@ -514,20 +515,20 @@ export default function Admin() {
                           <Label htmlFor="geofencing" className="font-medium">Enable Geofencing</Label>
                           <p className="text-sm text-gray-500">Block or allow traffic strictly based on CF-IPCountry headers</p>
                         </div>
-                        <Switch 
-                          id="geofencing" 
+                        <Switch
+                          id="geofencing"
                           checked={settings.security.geofencing}
                           onCheckedChange={(checked) => handleSettingChange('security', 'geofencing', checked)}
                         />
                       </div>
-                      
+
                       {settings.security.geofencing && (
                         <div className="mt-2 space-y-2">
                           <Label htmlFor="allowedCountries" className="text-sm">Allowed Regions (ISO-3166 Codes)</Label>
                           <p className="text-xs text-gray-500 mb-1">Enter comma-separated country codes</p>
-                          <Input 
-                            id="allowedCountries" 
-                            placeholder="US,CA,GB" 
+                          <Input
+                            id="allowedCountries"
+                            placeholder="US,CA,GB"
                             value={settings.security.allowedCountries}
                             onChange={(e) => handleSettingChange('security', 'allowedCountries', e.target.value)}
                           />
@@ -535,7 +536,7 @@ export default function Admin() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="pt-2">
                     <Button className="bg-red-600 hover:bg-red-700">
                       Save Security Settings
@@ -544,7 +545,7 @@ export default function Admin() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="integrations" className="space-y-4 mt-6">
               <Card>
                 <CardHeader>
@@ -564,8 +565,8 @@ export default function Admin() {
                         <p className="text-sm text-gray-500">Connection to SoftSwiss replica database</p>
                       </div>
                       <Badge className={
-                        settings.integrations.databaseConnected 
-                          ? "bg-green-100 text-green-800 flex items-center gap-1" 
+                        settings.integrations.databaseConnected
+                          ? "bg-green-100 text-green-800 flex items-center gap-1"
                           : "bg-amber-100 text-amber-800 flex items-center gap-1"
                       }>
                         {settings.integrations.databaseConnected ? (
@@ -581,15 +582,15 @@ export default function Admin() {
                         )}
                       </Badge>
                     </div>
-                    
+
                     <div className="flex items-center justify-between py-2">
                       <div>
                         <h3 className="font-medium">GitHub Integration</h3>
                         <p className="text-sm text-gray-500">Connect to GitHub for version control</p>
                       </div>
                       <Badge className={
-                        settings.integrations.gitHubConnected 
-                          ? "bg-green-100 text-green-800 flex items-center gap-1" 
+                        settings.integrations.gitHubConnected
+                          ? "bg-green-100 text-green-800 flex items-center gap-1"
                           : "bg-amber-100 text-amber-800 flex items-center gap-1"
                       }>
                         {settings.integrations.gitHubConnected ? (
@@ -605,18 +606,18 @@ export default function Admin() {
                         )}
                       </Badge>
                     </div>
-                    
+
                     <div className="flex items-center justify-between py-2">
                       <div>
                         <h3 className="font-medium">API Access Keys</h3>
                         <p className="text-sm text-gray-500">Enable external API access</p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={settings.integrations.apiKeysEnabled}
                         onCheckedChange={(checked) => handleSettingChange('integrations', 'apiKeysEnabled', checked)}
                       />
                     </div>
-                    
+
                     {settings.integrations.apiKeysEnabled && (
                       <div className="bg-gray-50 p-4 rounded-md mt-2">
                         <h4 className="font-medium mb-2">API Keys</h4>
@@ -655,7 +656,7 @@ export default function Admin() {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="pt-2">
                     <Button className="bg-red-600 hover:bg-red-700">
                       Save Integration Settings
@@ -664,7 +665,7 @@ export default function Admin() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="notifications" className="space-y-4 mt-6">
               <Card>
                 <CardHeader>
@@ -680,37 +681,37 @@ export default function Admin() {
                   <div className="space-y-3">
                     <h3 className="text-lg font-medium">Notification Channels</h3>
                     <Separator />
-                    
+
                     <div className="flex items-center justify-between py-2">
                       <div>
                         <Label className="font-medium">Email Notifications</Label>
                         <p className="text-sm text-gray-500">Send alerts and reports via email</p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={settings.notifications.emailAlerts}
                         onCheckedChange={(checked) => handleSettingChange('notifications', 'emailAlerts', checked)}
                       />
                     </div>
-                    
+
                     <div className="space-y-3 py-2">
                       <div className="flex items-center justify-between">
                         <div>
                           <Label className="font-medium">Slack Integration</Label>
                           <p className="text-sm text-gray-500">Send alerts to Slack channel</p>
                         </div>
-                        <Switch 
+                        <Switch
                           checked={settings.notifications.slackIntegration}
                           onCheckedChange={(checked) => handleSettingChange('notifications', 'slackIntegration', checked)}
                         />
                       </div>
-                      
+
                       {settings.notifications.slackIntegration && (
                         <div className="mt-2">
                           <Label htmlFor="slackWebhook" className="text-sm">Slack Webhook URL</Label>
                           <p className="text-xs text-gray-500 mb-1">Enter your Slack incoming webhook URL</p>
-                          <Input 
-                            id="slackWebhook" 
-                            placeholder="https://hooks.slack.com/services/..." 
+                          <Input
+                            id="slackWebhook"
+                            placeholder="https://hooks.slack.com/services/..."
                             value={settings.notifications.slackWebhook}
                             onChange={(e) => handleSettingChange('notifications', 'slackWebhook', e.target.value)}
                           />
@@ -718,38 +719,38 @@ export default function Admin() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <h3 className="text-lg font-medium">Notification Events</h3>
                     <Separator />
-                    
+
                     <div className="flex items-center justify-between py-2">
                       <div>
                         <Label className="font-medium">Failed Login Attempts</Label>
                         <p className="text-sm text-gray-500">Notify when multiple login failures are detected</p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={settings.notifications.alertOnLoginAttempts}
                         onCheckedChange={(checked) => handleSettingChange('notifications', 'alertOnLoginAttempts', checked)}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between py-2">
                       <div>
                         <Label className="font-medium">Data Change Alerts</Label>
                         <p className="text-sm text-gray-500">Notify when critical data is modified</p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={settings.notifications.alertOnDataChanges}
                         onCheckedChange={(checked) => handleSettingChange('notifications', 'alertOnDataChanges', checked)}
                       />
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <h3 className="text-lg font-medium">Scheduled Reports</h3>
                     <Separator />
-                    
+
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -764,7 +765,7 @@ export default function Admin() {
                         <TableRow>
                           <TableCell>Weekly Analytics Summary</TableCell>
                           <TableCell>Every Monday</TableCell>
-                          <TableCell>admin@example.com</TableCell>
+                          <TableCell>{DEFAULT_ADMIN_EMAIL}</TableCell>
                           <TableCell>Jul 17, 2023</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="sm">Edit</Button>
@@ -773,7 +774,7 @@ export default function Admin() {
                         <TableRow>
                           <TableCell>Monthly Revenue Report</TableCell>
                           <TableCell>1st of month</TableCell>
-                          <TableCell>admin@example.com, finance@example.com</TableCell>
+                          <TableCell>{DEFAULT_ADMIN_EMAIL}</TableCell>
                           <TableCell>Jul 1, 2023</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="sm">Edit</Button>
@@ -781,13 +782,13 @@ export default function Admin() {
                         </TableRow>
                       </TableBody>
                     </Table>
-                    
+
                     <Button variant="outline" size="sm">
                       <PlusCircle className="h-4 w-4 mr-2" />
                       Add Scheduled Report
                     </Button>
                   </div>
-                  
+
                   <div className="pt-2">
                     <Button className="bg-red-600 hover:bg-red-700">
                       Save Notification Settings

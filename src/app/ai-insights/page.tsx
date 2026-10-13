@@ -323,7 +323,7 @@ export default function AIInsights() {
                     
                     <Button 
                       className="w-full" 
-                      onClick={handleCreateReport}
+                      onClick={() => handleCreateReport()}
                       disabled={isGeneratingResponse}
                     >
                       <FileText className="h-4 w-4 mr-2" />

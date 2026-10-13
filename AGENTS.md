@@ -27,4 +27,16 @@
    - Dummy buttons and empty callbacks (`onClick={() => {}}`) are prohibited.
    - Enforce with `npm run check:interactive` and in `check-build`.
 
+9. **Verification Before Suggesting Fixes Policy (MANDATORY)**:
+   - Always run, execute, and verify fixes locally before presenting or suggesting them for review.
+   - Run type checks, linters, pre-commit checks, or relevant test suites to ensure the solution passes cleanly.
+   - Never speculate or suggest an untested fix. Verify it first, confirm it works, and only then present for review.
+
+10. **Production PR Pre-Flight Verification (`./prod.sh`) (MANDATORY)**:
+    - Run `./prod.sh` to validate secret scanning, button interactivity (100%), TypeScript (`tsc --noEmit`), ESLint, and Next.js bundle builds (`next build`) before PRs.
+
+11. **PR-Only Policy for Production (`main`) (MANDATORY)**:
+    - NEVER commit or push directly to `main`.
+    - Always create a dedicated branch (e.g. `feature/*`, `fix/*`), verify with `./prod.sh`, and merge to `main` exclusively via GitHub Pull Requests.
+
 

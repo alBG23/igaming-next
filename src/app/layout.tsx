@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { RenderKeepAliveProvider } from "@/components/render-keepalive-provider"
+import { UserFeedbackWidget } from "@/components/feedback/UserFeedbackWidget"
 
 const inter = Inter({ 
   variable: '--font-inter',
@@ -53,6 +54,7 @@ export default function RootLayout({
                 </div>
               </main>
             </div>
+            <UserFeedbackWidget />
           </RenderKeepAliveProvider>
         </ThemeProvider>
       </body>
