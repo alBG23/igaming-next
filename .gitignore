@@ -12,6 +12,7 @@
 
 # next.js
 /.next/
+/.next_check/
 /out/
 
 # production

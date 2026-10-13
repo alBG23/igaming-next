@@ -7,7 +7,7 @@
     "build": "next build",
     "check:interactive": "node scripts/check-interactivity.js",
     "check": "npm run check:interactive && npm run check-build",
-    "check-build": "npm run check:interactive && npm run lint && npm run build",
+    "check-build": "npm run check:interactive && npm run lint && NEXT_DIST_DIR=.next_check next build",
     "start": "next start",
     "lint": "next lint",
     "clean": "rimraf .next",
