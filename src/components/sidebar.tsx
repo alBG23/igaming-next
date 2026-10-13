@@ -94,9 +94,12 @@ export function Sidebar() {
           {sidebarOpen && (
             <div className="flex flex-col">
               <span className="text-sm font-medium">Admin</span>
-              <span className="text-xs text-muted-foreground">
+              <Link
+                href={`mailto:${DEFAULT_ADMIN_EMAIL}`}
+                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+              >
                 {DEFAULT_ADMIN_EMAIL}
-              </span>
+              </Link>
             </div>
           )}
         </div>
