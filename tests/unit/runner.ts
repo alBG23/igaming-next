@@ -8,3 +8,4 @@ import './routes.test';
 import './data-accuracy.test';
 import './data-accuracy-backend.test';
 import './data-source-flag.test';
+import './self-healing-build.test';
