@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDbPool } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 // Table mapping aliases for compatibility
 const TABLE_ALIASES: Record<string, string> = {
   users: 'users_view',

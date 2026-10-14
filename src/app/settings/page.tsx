@@ -36,9 +36,13 @@ import {
   Lock,
   BrainCircuit,
   HeadphonesIcon,
+  Database,
+  Server,
+  Cloud,
 } from 'lucide-react';
 import KnowledgeCurator from '@/components/admin/KnowledgeCurator';
 import SupportTickets from '@/components/admin/SupportTickets';
+import { DataSourceSwitcher } from '@/components/DataSourceSwitcher';
 import { DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_NAME } from '@/lib/constants';
 
 export default function SettingsPage() {
@@ -311,6 +315,10 @@ export default function SettingsPage() {
           <TabsTrigger value="b2b-support" className="gap-1.5">
             <HeadphonesIcon className="h-4 w-4" />
             B2B Support (P6)
+          </TabsTrigger>
+          <TabsTrigger value="data-source" className="gap-1.5">
+            <Database className="h-4 w-4" />
+            Data Source Flag
           </TabsTrigger>
         </TabsList>
 
@@ -626,6 +634,75 @@ export default function SettingsPage() {
         {/* ================= B2B SUPPORT TAB (P6) ================= */}
         <TabsContent value="b2b-support">
           <SupportTickets />
+        </TabsContent>
+
+        {/* ================= DATA SOURCE TAB ================= */}
+        <TabsContent value="data-source" className="space-y-6">
+          <DataSourceSwitcher variant="full" />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Server className="h-4 w-4 text-emerald-500" />
+                  Internal PostgreSQL (Local / Dev)
+                </CardTitle>
+                <CardDescription>
+                  Direct connection to local PostgreSQL or Render Cloud dev database.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm space-y-2">
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Default Target</span>
+                  <span className="font-mono text-xs">localhost:5432 / luckystart</span>
+                </div>
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Connection Type</span>
+                  <span className="font-medium">Direct Pool / pg-query</span>
+                </div>
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Features Supported</span>
+                  <span className="text-xs">Fast Queries, Multi-table joins, Local dev</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="text-emerald-500 font-medium">Ready</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Cloud className="h-4 w-4 text-sky-500" />
+                  Supabase (Cloud Replica)
+                </CardTitle>
+                <CardDescription>
+                  Authoritative cloud replica views (users_view, payments_view, bets).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm space-y-2">
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Endpoint</span>
+                  <span className="font-mono text-xs truncate max-w-[200px]">
+                    {process.env.NEXT_PUBLIC_SUPABASE_URL || 'Cloud HTTPS'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Auth & RLS</span>
+                  <span className="font-medium">Anon Key / PostgREST</span>
+                </div>
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Features Supported</span>
+                  <span className="text-xs">Real-time sync, Softswiss view replica</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="text-sky-500 font-medium">Available</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

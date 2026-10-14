@@ -24,6 +24,7 @@ import {
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/constants"
+import { DataSourceSwitcher } from "@/components/DataSourceSwitcher"
 
 const navigationItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -87,7 +88,12 @@ export function Sidebar() {
           })}
         </nav>
       </ScrollArea>
-      <div className="mt-auto border-t p-4">
+      <div className="mt-auto border-t p-3 space-y-3">
+        {sidebarOpen && (
+          <div className="w-full">
+            <DataSourceSwitcher variant="compact" className="w-full justify-between" />
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarFallback>AD</AvatarFallback>

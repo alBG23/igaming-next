@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDbPool } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Universal MCP Query Handler
  * Supports localhost, dev, and prod environments:
