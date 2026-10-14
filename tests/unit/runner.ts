@@ -5,3 +5,4 @@
 import './utils.test';
 import './constants.test';
 import './routes.test';
+import './data-accuracy.test';
