@@ -32,6 +32,9 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Run Unit Tests
+        run: npm run test:unit
+
       - name: Run Next.js production build
         run: npm run build
         env:

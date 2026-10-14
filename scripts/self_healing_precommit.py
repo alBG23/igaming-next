@@ -522,7 +522,13 @@ def run_frontend_suite(runner: HealingLoopRunner, frontend_dir: Path) -> bool:
 
     # Step 5: Next.js Production Build
     print("  --> Validating Next.js production build...")
-    build_env = {"NEXT_DIST_DIR": ".next_check"}
+    build_env = {
+        "NEXT_DIST_DIR": ".next_check",
+        "NODE_ENV": "production",
+        "NEXT_PUBLIC_API_URL": os.getenv("NEXT_PUBLIC_API_URL", "https://igaming-backend-dev.onrender.com"),
+        "NEXT_PUBLIC_SUPABASE_URL": os.getenv("NEXT_PUBLIC_SUPABASE_URL", "https://mock-ci-supabase.co"),
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "mock-ci-anon-key-valid-length-1234567890"),
+    }
     ok = runner.execute_with_healing(
         "Next.js Production Build",
         ["npm", "run", "build"],
@@ -604,12 +610,59 @@ def run_backend_suite(runner: HealingLoopRunner, backend_dir: Path, force_all: b
         if not ok:
             return False
 
-    # Step 5: Full suite if requested
-    if force_all or os.getenv("PRE_COMMIT_ALL_TESTS") == "1" or os.getenv("CI") == "true":
-        print("  --> Running full hermetic CI test suite...")
+    # Step 5: Staged and impacted app tests
+    staged_tests: list[str] = []
+    try:
+        proc = subprocess.run(
+            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
+            cwd=str(backend_dir),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode == 0:
+            for line in proc.stdout.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("tests/") and line.endswith(".py") and "test_" in line:
+                    if not any(ig in line for ig in ["integration", "test_ai_chat", "test_ai_accuracy"]):
+                        if (backend_dir / line).exists() and line not in staged_tests:
+                            staged_tests.append(line)
+                elif line.startswith("app/") and line.endswith(".py"):
+                    base = Path(line).stem
+                    candidate = f"tests/test_{base}.py"
+                    if (backend_dir / candidate).exists() and candidate not in staged_tests:
+                        staged_tests.append(candidate)
+    except Exception:
+        pass
+
+    if staged_tests:
+        print(f"  --> Running tests for staged changes: {' '.join(staged_tests)}...")
+        ok = runner.execute_with_healing(
+            "Staged Changes Tests",
+            [str(pytest_bin), "-q"] + staged_tests,
+            backend_dir,
+            BuildErrorClassifier.classify_backend,
+            env=env,
+        )
+        if not ok:
+            return False
+
+    # Step 6: Full Hermetic CI Validation Pytest Suite
+    if force_all and os.getenv("SKIP_CI_TESTS") != "1":
+        print("  --> Running full hermetic CI test suite validation...")
         ok = runner.execute_with_healing(
             "Full CI Pytest Suite",
-            [str(pytest_bin), "-q", "tests", "--timeout=300", "--ignore=tests/integration/", "--ignore=tests/test_ai_chat.py", "--ignore=tests/test_ai_accuracy.py"],
+            [
+                str(pytest_bin),
+                "-q",
+                "tests",
+                "--timeout=300",
+                "--ignore=tests/integration/",
+                "--ignore=tests/test_ai_chat.py",
+                "--ignore=tests/test_ai_accuracy.py",
+            ],
             backend_dir,
             BuildErrorClassifier.classify_backend,
             env=env,
@@ -625,7 +678,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Intelligent Pre-Commit Self-Healing Build Runner")
     parser.add_argument("--frontend", action="store_true", help="Run only frontend self-healing checks")
     parser.add_argument("--backend", action="store_true", help="Run only backend self-healing checks")
-    parser.add_argument("--all", action="store_true", help="Run full-stack tests including complete pytest suite")
+    parser.add_argument("--all", action="store_true", default=True, help="Run full-stack tests including complete CI test suite (default: True)")
+    parser.add_argument("--quick", action="store_true", help="Skip full CI test suite for rapid WIP iteration")
     parser.add_argument("--max-passes", type=int, default=MAX_HEAL_PASSES, help="Maximum self-healing attempts")
     args = parser.parse_args()
 
@@ -656,13 +710,15 @@ def main() -> int:
     run_front = args.frontend or (not args.backend)
     run_back = args.backend or (not args.frontend)
 
+    force_all = not args.quick
+
     if run_front and frontend_dir.is_dir():
         if not run_frontend_suite(runner, frontend_dir):
             print(f"\n{BOLD}{RED}✖ Pre-commit validation failed in frontend suite.{NC}")
             return 1
 
     if run_back and backend_dir.is_dir():
-        if not run_backend_suite(runner, backend_dir, force_all=args.all):
+        if not run_backend_suite(runner, backend_dir, force_all=force_all):
             print(f"\n{BOLD}{RED}✖ Pre-commit validation failed in backend suite.{NC}")
             return 1
 
