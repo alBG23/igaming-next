@@ -1,92 +1,57 @@
-# Data Accuracy & Continuous Reconciliation Architecture (P1)
+# Data Accuracy: Implemented Behavior and Operator Guide
 
-## Executive Summary
-In an iGaming analytics platform, operators make revenue share, payment processing, and player retention decisions based on reported numbers. One inaccurate NGR or deposit figure causes permanent loss of trust.
+## What is currently implemented
 
-This document outlines the end-to-end plan to:
-1. **Check and validate** platform data invariants.
-2. **Constantly compare** local aggregated data against authoritative Sources of Truth (Softswiss, Affilka, Back Office).
-3. **Dispatch proactive alerts** with SLA aging and recovery auto-closing.
-4. **Auto-heal discrepancies safely** without risking data loss or masking upstream issues.
+The dashboard and its server routes consume protected backend data-accuracy APIs; they no longer manufacture financial values, parity claims, local findings, or healing results.
 
----
+- `GET /api/data-accuracy/status` loads the backend cross-source comparison, persisted findings, QA-loop configuration, and recent loop runs. A missing backend configuration, unavailable service, or authorization error is surfaced rather than replaced with sample data.
+- `POST /api/data-accuracy/reconcile?days=7` runs a read-only comparison for the last seven fully closed UTC days and requests backend discrepancy alerts. `days` must be an integer from 1 to 90.
+- `GET /api/data-accuracy/parity-proof?days=7` proxies the backend's evidence report. The report is based on operator-supplied `bo_snapshot` values and exposes observed comparisons, gaps, missing values, coverage, and an evidence fingerprint. No-overlap is `UNVERIFIED`; unsupported provider/metric coverage is not implied.
+- `POST /api/data-accuracy/autofix?on=true|false` forwards the existing backend operator switch. The backend's master remediation configuration and operator switch jointly gate automation. The UI disables the switch when the backend loop or master setting is disabled.
+- `POST /api/data-accuracy/heal` is retired with HTTP 410. Individual frontend-triggered healing is intentionally unavailable; findings and risk-gated remediation remain under backend controls.
+- `GET|POST /api/cron/data-reconciliation` is retired with HTTP 410. Scheduling is owned by the backend QA loop (`QA_LOOP_INTERVAL_MINUTES`; `0` disables the loop), not a mock Next.js cron route.
 
-## 1. The Plan to Check
+The current independent source is the operator-supplied Back Office snapshot. The comparator handles GGR, NGR, bonuses, deposits, and cashouts in native currency; affiliate commissions and other integrations are not claimed as covered. Comparison tolerance is currently 1%.
 
-### A. Core Invariants (Write-Time Contracts)
-- **Net Gaming Revenue (NGR) Identity**:
-  $$\text{NGR} = \text{GGR} - \text{Total Bonuses} + \text{Net Corrections} \quad (\epsilon \le 0.01)$$
-- **Subunit Multi-Currency Divisors**:
-  - Fiat (EUR, USD, CAD, AUD): $\div 100$
-  - Standard Crypto (BTC, LTC, DOGE): $\div 10^8$
-  - Ethereum (ETH): $\div 10^9$ (ETH subunit scale has burned systems before)
-- **Non-Negative Constraints**: Counts of deposits, withdrawals, players, and game rounds must strictly be $\ge 0$.
+## Data flow and access
 
-### B. Closed Days vs. Live Days Rule
-- **Live Day (Today)**: Transactions, wager rounds, and deposits are *actively accruing*. Live comparisons against static snapshots inevitably diverge due to timing offsets. Today's metrics are labelled **Provisional / Live Accruing**.
-- **Closed Days ($T-1$ and older)**: Financial books are closed and immutable. Closed days must tie **to the cent** against the external Source of Truth.
+The Next.js server helper in `src/lib/data-accuracy/backend.ts` requires `NEXT_PUBLIC_API_URL`, forwards the incoming `ls_session` cookie and `Authorization` header, disables caching, and applies a request timeout. The backend endpoints enforce admin access. Do not add credentials to frontend code or environment files. A 401/403 indicates access must be resolved through the existing login/admin flow; a 503 indicates missing configuration or an unavailable backend.
 
----
+The dashboard presents:
 
-## 2. Constantly Compare vs. Source of Truth (SoT)
+- observed match rate only when comparisons exist; otherwise it says **Unverified**;
+- comparison/gap coverage and persisted open findings;
+- source, application, and delta values per date/metric/currency;
+- the backend loop status and operator auto-fix switch;
+- a downloadable parity report that retains the backend's exact status and coverage.
 
-### Hierarchy of Sources of Truth
-1. **Primary Gaming & Transaction Truth**: Softswiss Replica DB (`payments_view`, `accounts_view`, `casino_games_view_with_currency`).
-2. **Attribution & Affiliate Truth**: Affilka API & `api_reports` (`user_id_in_casino`, `partner_id`).
-3. **External Independent Anchor**: Operator Back Office (BO) KPI reports.
+It does not claim a universal 100% accuracy score or independently attest data it did not compare.
 
-### Comparison Schedule & Engine
-- **Intraday Reconciliation**: Automated cron job (`/api/cron/data-reconciliation`) running hourly over trailing 7 days.
-- **Deep Nightly Verification**: Comprehensive 30-day window scan comparing all currency slices.
-- **Divergence Metrics**:
-  $$\text{Variance \%} = \frac{|\text{Prebuilt} - \text{Source}|}{\max(|\text{Source}|, 1)} \times 100$$
-  - **Match**: Variance $< 0.1\%$
-  - **Drift**: $0.1\% \le \text{Variance} \le 1.0\%$
-  - **Mismatch**: Variance $> 1.0\%$
+## GSD Core in this repository
 
----
+GSD Core is vendored locally in `.github/gsd-core/` (version recorded in `.github/gsd-core/VERSION`). The installer adds repository Copilot configuration, GSD workflows/skills/references/templates, hooks, scripts, a manifest, install state, and a GSD section in `AGENTS.md`. The repository-local profile is Core and the Copilot-compatible setup is intended to work without a runtime network install.
 
-## 3. Alerting & Watchdog System
+Use the matching installed workflow/skill under `.github/skills/gsd-*` for an explicitly requested GSD operation. The generated `AGENTS.md` section describes command routing. Run GSD commands from this repository root so generated paths and state stay repository-local. Review `.github/gsd-file-manifest.json` and `git status` before committing; keep generated project data and environment files out of commits unless the task explicitly requires them.
 
-### A. Multi-Channel Alert Delivery
-- **Telegram Bot Webhook**: High-priority alert channel for analytics engineers.
-- **Slack Alert Channel**: Team incident visibility.
-- **Incident Digest**: Multiple discrepancies within a single run are batched into a single formatted digest to prevent alert fatigue.
+## Verification
 
-### B. SLA Aging & Escalation
-- **Critical Mismatch SLA**: 4 Hours. If unresolved, the watchdog re-escalates with high urgency.
-- **Warning Drift SLA**: 24 Hours.
-- **Auto-Close on Recovery**: When subsequent runs confirm numbers now match the Source of Truth, the finding is marked `AUTO_CLOSED_RECOVERED` and an automated all-clear notification is sent.
+From `igaming-next/`:
 
----
+```bash
+npm run test:unit
+npm run check:interactive
+npm run type-check
+npm run lint
+npm run build
+```
 
-## 4. Healing Engine: When Possible & Not Risky
+The unit suite includes focused tests for the data-accuracy server proxy: required configuration, forwarded admin context, no-store behavior, upstream status/body preservation, and explicit backend failures. The focused browser spec is `tests/e2e/data-accuracy.spec.ts`; it verifies the retired cron semantics, status API authorization/error behavior, and that the dashboard does not expose direct healing or claim fabricated parity.
 
-Auto-healing must be **surgical, non-destructive, and risk-gated**. Blindly rebuilding can paper over real upstream replication failures.
+For the full project preflight, run `./prod.sh --check-only` from the workspace root when its required local services/configuration are available. After code changes, run `graphify update .` from this repository root if Graphify is installed.
 
-### The Risk Assessment Matrix
+## Known operating limits
 
-| Condition | Classification | Action | Rationale |
-|---|---|---|---|
-| Prebuilt $<$ Source, Source $> 0$ | **SAFE_AUTO_HEAL** | Rebuild slice from source | Additive & restorative; restores missing transactions |
-| Outdated Logic Version ($v < HEAD$) | **SAFE_AUTO_HEAL** | Re-run with HEAD logic | Self-corrects known bugs fixed in recent commits |
-| Prebuilt $>$ Source, Source $\approx 0$ | **RISKY_MANUAL_REVIEW** | Quarantine + Alert | Source may be experiencing replication outage; rebuilding would wipe valid data |
-| High Variance ($>€5,000$ or $>15\%$) | **RISKY_MANUAL_REVIEW** | Quarantine + Alert | Delta is too large for automated intervention |
-| Live Window (Today) | **BLOCKED_LIVE_WINDOW** | Hold / Skip | Accruing day; healing would freeze unfinished state |
-| Destructive Operation (Drop/Delete) | **FORBIDDEN** | Block | Deletions are never performed by automated healers |
-
-### Safety Circuit Breakers
-- **Daily Heal Budget**: Maximum 5 date-slices healed per run.
-- **Monetary Delta Cap**: Maximum €10,000 total variance adjustment per run.
-- **Master Kill-Switch**: Operator can pause automated healing instantly from Admin UI.
-- **Audit Logging**: Every heal action writes to an immutable audit ledger with before/after timestamps and delta.
-
----
-
-## 5. Endpoints & UI Interface
-
-- `GET /api/cron/data-reconciliation`: Scheduled background reconciler & healer.
-- `GET/POST /api/data-accuracy/reconcile`: Trigger manual or scheduled reconciliation pass.
-- `POST /api/data-accuracy/heal`: Execute guarded safe auto-healing.
-- `GET /api/data-accuracy/status`: Real-time system health, discrepancy list, and audit logs.
-- `Admin UI > Data Accuracy Tab` & `/data-accuracy`: Unified visual management console.
+- The Back Office snapshot must be loaded independently before parity can be verified.
+- Snapshot ingest remains operator-owned; this implementation does not invent or schedule a provider ingestion job.
+- The frontend is not the remediation engine. Backend master settings, operator pause switch, and backend safety checks remain authoritative.
+- Run history and findings may require backend database tables and valid admin authentication.

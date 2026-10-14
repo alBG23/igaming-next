@@ -49,6 +49,8 @@ import {
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react';
+import { DataSourceSwitcher } from '@/components/DataSourceSwitcher';
+import { getDataSource } from '@/lib/data-source';
 
 interface Player {
   id: number;
@@ -159,18 +161,19 @@ export default function PlayersPage() {
   const [editError, setEditError] = useState('');
 
   // Real Database Source & Import Modal States
-  const [dataSource, setDataSource] = useState<'postgresql' | 'local'>('local');
+  const [dataSource, setDataSource] = useState<'postgresql' | 'supabase' | 'local'>('local');
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importContent, setImportContent] = useState('');
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch real players from PostgreSQL database
-  const fetchPlayersFromDb = async () => {
+  // Fetch real players from selected data source (PostgreSQL or Supabase)
+  const fetchPlayersFromDb = async (overrideSource?: string) => {
     setIsRefreshing(true);
+    const activeSrc = overrideSource || getDataSource();
     try {
-      const res = await fetch('/api/players');
+      const res = await fetch(`/api/players?source=${activeSrc}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data) && json.data.length > 0) {
         const formatted: Player[] = json.data.map((item: any) => ({
@@ -185,17 +188,31 @@ export default function PlayersPage() {
           registeredAt: item.registeredAt || '2026-01-01',
         }));
         setPlayers(formatted);
-        setDataSource('postgresql');
+        setDataSource(json.source === 'supabase' ? 'supabase' : 'postgresql');
         localStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
         return true;
       }
     } catch (err) {
-      console.warn('Failed to fetch players from PostgreSQL API:', err);
+      console.warn(`Failed to fetch players from ${activeSrc} API:`, err);
     } finally {
       setIsRefreshing(false);
     }
     return false;
   };
+
+  // Listen for data source changes across the application
+  useEffect(() => {
+    const handleSourceChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ source: any }>;
+      if (customEvent.detail?.source) {
+        fetchPlayersFromDb(customEvent.detail.source);
+      }
+    };
+    window.addEventListener('bright:data-source-change', handleSourceChange);
+    return () => {
+      window.removeEventListener('bright:data-source-change', handleSourceChange);
+    };
+  }, []);
 
   // Load from database on mount, fallback to localStorage
   useEffect(() => {
@@ -552,17 +569,20 @@ export default function PlayersPage() {
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
               dataSource === 'postgresql'
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                : dataSource === 'supabase'
+                ? 'bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800'
                 : 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
             }`}>
               <Database className="h-3 w-3" />
-              {dataSource === 'postgresql' ? 'Live PostgreSQL' : 'Local Storage'}
+              {dataSource === 'postgresql' ? 'Live PostgreSQL' : dataSource === 'supabase' ? 'Cloud Supabase' : 'Local Storage'}
             </span>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             Manage player accounts, account statuses, balances, and operational profiles.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <DataSourceSwitcher variant="compact" onSourceChange={(src) => fetchPlayersFromDb(src)} />
           <Button
             variant="outline"
             size="sm"
@@ -580,10 +600,10 @@ export default function PlayersPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchPlayersFromDb}
+            onClick={() => fetchPlayersFromDb()}
             disabled={isRefreshing}
             className="gap-1.5"
-            title="Refresh from PostgreSQL Database"
+            title="Refresh from Selected Database"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             Sync DB

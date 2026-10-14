@@ -6,3 +6,5 @@ import './utils.test';
 import './constants.test';
 import './routes.test';
 import './data-accuracy.test';
+import './data-accuracy-backend.test';
+import './data-source-flag.test';

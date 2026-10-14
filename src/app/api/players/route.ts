@@ -9,6 +9,49 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || ''
     const status = searchParams.get('status') || 'All'
 
+    const dataSource = (searchParams.get('source') || process.env.NEXT_PUBLIC_DATA_SOURCE || 'postgres').toLowerCase()
+
+    if (dataSource === 'supabase') {
+      try {
+        const { supabase } = await import('@/lib/supabase')
+        let query = supabase.from('users_view').select('*').limit(200)
+
+        if (status === 'Active') {
+          query = query.eq('disabled', false).eq('suspended', false)
+        } else if (status === 'Inactive') {
+          query = query.or('disabled.eq.true,suspended.eq.true')
+        }
+
+        if (search.trim()) {
+          query = query.ilike('email', `%${search.trim()}%`)
+        }
+
+        const { data, error } = await query
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const formatted = data.map((u: any) => ({
+            id: u.id,
+            name: (u.email || '').split('@')[0] || 'Player',
+            email: u.email,
+            status: (u.disabled || u.suspended) ? 'Inactive' : 'Active',
+            vipTier: u.tags || 'Bronze',
+            balance: 0,
+            currency: 'EUR',
+            country: u.ctag || 'EU',
+            lastLogin: u.last_sign_in_at ? new Date(u.last_sign_in_at).toISOString().replace('T', ' ').slice(0, 19) : 'Never',
+            registeredAt: u.created_at ? new Date(u.created_at).toISOString().slice(0, 10) : '2026-01-01',
+          }))
+          return NextResponse.json({
+            success: true,
+            data: formatted,
+            total: formatted.length,
+            source: 'supabase',
+          })
+        }
+      } catch (supabaseErr: any) {
+        console.warn('[GET /api/players Supabase query fallback to postgres]:', supabaseErr.message)
+      }
+    }
+
     const pool = getDbPool()
 
     let whereConditions: string[] = []
