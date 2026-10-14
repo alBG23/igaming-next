@@ -1,48 +1,96 @@
 import { NextResponse } from 'next/server';
-import { getAccuracySystemState, runReconciliation } from '@/lib/data-accuracy/engine';
-import { getAlertHistory } from '@/lib/data-accuracy/alerting';
+import {
+  dataAccuracyBackendError,
+  forwardDataAccuracyResponse,
+  requestDataAccuracyBackend,
+} from '@/lib/data-accuracy/backend';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    let state = getAccuracySystemState();
+    const end = new Date();
+    end.setUTCDate(end.getUTCDate() - 1);
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - 6);
+    const window = new URLSearchParams({
+      date_from: start.toISOString().slice(0, 10),
+      date_to: end.toISOString().slice(0, 10),
+    });
 
-    // If no findings yet evaluated, execute initial reconciliation pass
-    if (state.findings.length === 0) {
-      await runReconciliation(7);
-      state = getAccuracySystemState();
-    }
+    const responses = await Promise.all([
+      requestDataAccuracyBackend(request, `/api/v1/data-qa/cross-source?${window}`),
+      requestDataAccuracyBackend(request, '/api/v1/data-qa/findings'),
+      requestDataAccuracyBackend(request, '/api/v1/data-qa/loop'),
+      requestDataAccuracyBackend(request, '/api/v1/data-qa/loop/runs?limit=5'),
+    ]);
+    const failedResponse = responses.find((response) => !response.ok);
+    if (failedResponse) return forwardDataAccuracyResponse(failedResponse);
 
-    const alerts = getAlertHistory();
-
-    const total = state.findings.length;
-    const matches = state.findings.filter(f => f.status === 'MATCH').length;
-    const critical = state.findings.filter(f => f.severity === 'CRITICAL' && f.reviewStatus === 'OPEN').length;
-    const warning = state.findings.filter(f => f.severity === 'WARNING' && f.reviewStatus === 'OPEN').length;
-    const safeHealable = state.findings.filter(f => f.riskClassification === 'SAFE_AUTO_HEAL' && f.reviewStatus === 'OPEN').length;
-    const quarantined = state.findings.filter(f => f.riskClassification === 'RISKY_MANUAL_REVIEW').length;
+    const [crossSource, findingQueue, loop, runHistory] = await Promise.all(
+      responses.map((response: any) => response.json()),
+    );
+    const comparisons = crossSource.comparisons || [];
+    const missing = crossSource.missing || [];
+    const rows = [
+      ...comparisons.map((item: any) => ({
+        id: `${item.metric}:${item.date}:${item.currency}`,
+        date: item.date,
+        metric: item.metric,
+        currency: item.currency,
+        sourceOfTruth: `Back Office (${crossSource.source})`,
+        sourceValue: item.ref,
+        prebuiltValue: item.ours,
+        delta: item.delta,
+        deltaPct: item.diff_pct,
+        status: item.matches ? 'MATCH' : 'DISCREPANCY',
+        riskClassification: 'NOT_ASSESSED',
+        riskReason: 'Use the backend findings queue for remediation eligibility.',
+        isClosedDay: true,
+      })),
+      ...missing.map((item: any) => ({
+        id: `${item.metric}:${item.date}:${item.currency}`,
+        date: item.date,
+        metric: item.metric,
+        currency: item.currency,
+        sourceOfTruth: `Back Office (${crossSource.source})`,
+        sourceValue: item.ref,
+        prebuiltValue: null,
+        delta: null,
+        deltaPct: null,
+        status: 'MISSING',
+        riskClassification: 'NOT_ASSESSED',
+        riskReason: 'Application value missing; manual review required.',
+        isClosedDay: true,
+      })),
+    ];
+    const compared = comparisons.length;
+    const matches = comparisons.filter((item: { matches: boolean }) => item.matches).length;
+    const discrepancyCount = (crossSource.gaps || []).length + missing.length;
+    const totalChecks = compared + missing.length;
 
     return NextResponse.json({
       success: true,
-      accuracyScorePct: total > 0 ? Number(((matches / total) * 100).toFixed(2)) : 100,
+      crossSource,
+      findings: rows,
+      findingQueue: findingQueue.findings || [],
+      findingSummary: findingQueue.summary || {},
+      loop,
+      recentRuns: runHistory.runs || [],
+      accuracyScorePct: totalChecks
+        ? Number(((matches / totalChecks) * 100).toFixed(2))
+        : null,
       summary: {
-        totalChecks: total,
+        totalChecks,
         matches,
-        critical,
-        warning,
-        safeHealable,
-        quarantined,
-        healed24h: state.auditLog.filter(l => l.success).length,
+        critical: discrepancyCount,
+        warning: 0,
+        safeHealable: 0,
+        quarantined: findingQueue.summary?.tier_b || 0,
+        openFindings: findingQueue.summary?.open || 0,
       },
-      findings: state.findings,
-      auditLog: state.auditLog.slice(0, 20),
-      recentAlerts: alerts.slice(0, 10),
-      config: state.config,
-      headVersion: state.headVersion,
     });
   } catch (error) {
-    console.error('Error fetching accuracy system status:', error);
-    return NextResponse.json({ error: 'Failed to fetch status' }, { status: 500 });
+    return dataAccuracyBackendError(error, 'Unable to load data-accuracy status');
   }
 }

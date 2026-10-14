@@ -1,77 +1,149 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('P1: Continuous Data Accuracy, Reconciliation & Healing Engine', () => {
-  test('verifies /data-accuracy dashboard metrics, accordion toggle, filter tabs, and healing actions', async ({ page }) => {
-    await page.goto('/data-accuracy');
-    await page.waitForLoadState('domcontentloaded');
+const statusFixture = {
+  success: true,
+  crossSource: { source: 'bo', verified: false },
+  findings: [
+    {
+      id: 'ggr:2026-01-01:EUR',
+      date: '2026-01-01',
+      metric: 'ggr',
+      currency: 'EUR',
+      sourceOfTruth: 'Back Office (bo)',
+      sourceValue: 100,
+      prebuiltValue: 100,
+      delta: 0,
+      deltaPct: 0,
+      status: 'MATCH',
+      isClosedDay: true,
+    },
+    {
+      id: 'ngr:2026-01-01:EUR',
+      date: '2026-01-01',
+      metric: 'ngr',
+      currency: 'EUR',
+      sourceOfTruth: 'Back Office (bo)',
+      sourceValue: 80,
+      prebuiltValue: null,
+      delta: null,
+      deltaPct: null,
+      status: 'MISSING',
+      isClosedDay: true,
+    },
+  ],
+  findingQueue: [],
+  findingSummary: { open: 0, tier_b: 0 },
+  loop: {
+    loop_enabled: true,
+    autofix: { master_env_enabled: true, operator_switch_on: false },
+  },
+  recentRuns: [],
+  accuracyScorePct: 50,
+  summary: {
+    totalChecks: 2,
+    matches: 1,
+    critical: 1,
+    warning: 0,
+    safeHealable: 0,
+    quarantined: 0,
+    openFindings: 0,
+  },
+};
 
-    // 1. Heading and System Status
-    await expect(page.getByRole('heading', { name: 'Data Accuracy & Continuous Reconciliation' })).toBeVisible();
-
-    // 2. Financial KPI Metric Cards
-    await expect(page.locator('text=Accuracy Score')).toBeVisible();
-    await expect(page.getByText('Critical Discrepancies', { exact: true })).toBeVisible();
-    await expect(page.locator('text=Drifts & Warnings')).toBeVisible();
-    await expect(page.locator('text=Safe Heal Candidates').first()).toBeVisible();
-    await expect(page.locator('text=Quarantined (Risky)').first()).toBeVisible();
-
-    // 3. The Plan Accordion button interactivity
-    const planToggleBtn = page.getByRole('button', { name: /The Plan: How We Guarantee Data Accuracy/i }).or(
-      page.locator('text=The Plan: How We Guarantee Data Accuracy & Safe Healing')
+test.describe('Data accuracy evidence dashboard', () => {
+  test('renders observed comparisons and only exposes backend-owned controls', async ({ page }) => {
+    await page.route('**/api/data-accuracy/status', (route) =>
+      route.fulfill({ status: 200, json: statusFixture }),
     );
-    await expect(planToggleBtn.first()).toBeVisible();
-    await planToggleBtn.first().click();
+    await page.route('**/api/data-accuracy/reconcile*', (route) =>
+      route.fulfill({ status: 200, json: { ok: true } }),
+    );
+    await page.route('**/api/data-accuracy/autofix*', (route) =>
+      route.fulfill({ status: 200, json: { operator_switch_on: true } }),
+    );
+    await page.route('**/api/data-accuracy/parity-proof*', (route) =>
+      route.fulfill({
+        status: 200,
+        json: {
+          status: 'UNVERIFIED',
+          overall_match_rate: null,
+          evaluated_at: '2026-01-02T00:00:00Z',
+          window_days: 7,
+          closed_days_count: 7,
+          source_of_truth: 'Operator-supplied back-office snapshot (bo_snapshot)',
+          coverage: { compared: 0, matched: 0 },
+          metrics: [{
+            metric_id: 'ggr',
+            name: 'Gross Gaming Revenue',
+            currency: null,
+            app_value: null,
+            source_value: null,
+            delta: null,
+            status: 'UNVERIFIED',
+          }],
+          repeatable_proof_hash: 'sha256:test',
+          prospect_summary: 'No overlapping records; parity is unverified.',
+        },
+      }),
+    );
 
-    // Verify Plan details expand
-    await expect(page.locator('text=1. Check & Identity Rules').first()).toBeVisible();
+    await page.goto('/data-accuracy');
+    await expect(page.getByRole('heading', { name: 'Data Accuracy & Continuous Reconciliation' })).toBeVisible();
+    await expect(page.getByText('50%', { exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Back Office (bo)' }).first()).toBeVisible();
+    await expect(page.getByText('MISSING APPLICATION VALUE', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Run Reconcile Pass' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'One-Click Parity Proof' })).toBeEnabled();
+    await expect(page.getByRole('switch', { name: 'Backend auto-fix' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /Heal Slice|Safe Auto-Heal|Review/ })).toHaveCount(0);
 
-    // 4. Test Filter buttons (All, Discrepancies Only, Safe Heal Candidates)
-    const discrepanciesBtn = page.getByRole('button', { name: /Discrepancies Only/i });
-    if (await discrepanciesBtn.isVisible()) {
-      await discrepanciesBtn.click();
-    }
+    await page.getByRole('button', { name: 'Discrepancies Only' }).click();
+    await expect(page.getByText('MISSING APPLICATION VALUE', { exact: true })).toBeVisible();
+    await expect(page.getByText('MATCH', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'All (2)' }).click();
 
-    const safeHealFilterBtn = page.getByRole('button', { name: /Safe Heal Candidates/i }).last();
-    if (await safeHealFilterBtn.isVisible()) {
-      await safeHealFilterBtn.click();
-    }
+    await page.getByRole('button', { name: 'One-Click Parity Proof' }).click();
+    await expect(page.getByText('No overlapping records; parity is unverified.')).toBeVisible();
+    await expect(page.getByText('UNVERIFIED').first()).toBeVisible();
 
-    const allBtn = page.getByRole('button', { name: /All \(/i });
-    if (await allBtn.isVisible()) {
-      await allBtn.click();
-    }
-
-    // 5. Test "Run Reconcile Pass" button
-    const reconcileBtn = page.getByRole('button', { name: /Run Reconcile Pass/i });
-    await expect(reconcileBtn).toBeVisible();
-    await reconcileBtn.click();
-
-    // Wait for reconciliation to trigger and complete or show feedback
-    await page.waitForTimeout(1000);
-
-    // 6. Test "Safe Auto-Heal" button
-    const healBtn = page.getByRole('button', { name: /Safe Auto-Heal/i }).first();
-    await expect(healBtn).toBeVisible();
-    if (!await healBtn.isDisabled()) {
-      await healBtn.click();
-      await page.waitForTimeout(1000);
-    }
+    await page.getByRole('button', { name: 'Run Reconcile Pass' }).click();
+    await expect(page.getByText('Reconciliation pass completed across 7-day window.')).toBeVisible();
+    await page.getByRole('switch', { name: 'Backend auto-fix' }).click();
+    await expect(page.getByText('Backend auto-fix resumed.')).toBeVisible();
   });
 
-  test('verifies /api/cron/data-reconciliation endpoint executes scheduled cycle', async ({ request }) => {
-    const response = await request.get('/api/cron/data-reconciliation');
-    expect(response.ok()).toBeTruthy();
-    const data = await response.json();
-    expect(data.success).toBe(true);
-    expect(data.stats).toBeDefined();
-    expect(typeof data.stats.accuracyScorePct).toBe('number');
+  test('retired frontend heal and cron routes return 410', async ({ request }) => {
+    const responses = await Promise.all([
+      request.post('/api/data-accuracy/heal'),
+      request.get('/api/cron/data-reconciliation'),
+      request.post('/api/cron/data-reconciliation'),
+    ]);
+    for (const response of responses) expect(response.status()).toBe(410);
   });
 
-  test('verifies /api/data-accuracy/status endpoint provides engine telemetry', async ({ request }) => {
-    const response = await request.get('/api/data-accuracy/status');
-    expect(response.ok()).toBeTruthy();
-    const data = await response.json();
-    expect(data.success).toBe(true);
-    expect(data.summary).toBeDefined();
+  test('status and parity endpoints return backend evidence or explicit access/unavailable errors', async ({ request }) => {
+    const status = await request.get('/api/data-accuracy/status');
+    expect([200, 401, 403, 503]).toContain(status.status());
+    if (status.ok()) {
+      const statusBody = await status.json();
+      expect(statusBody.success).toBe(true);
+      expect(statusBody.summary).toBeDefined();
+      expect(statusBody.crossSource).toBeDefined();
+      expect(statusBody.accuracyScorePct === null || typeof statusBody.accuracyScorePct === 'number').toBe(true);
+    } else {
+      expect((await status.text()).trim()).not.toBe('');
+    }
+
+    const proof = await request.get('/api/data-accuracy/parity-proof');
+    expect([200, 401, 403, 503]).toContain(proof.status());
+    if (proof.ok()) {
+      const proofBody = await proof.json();
+      expect(['VERIFIED_PARITY', 'DISCREPANCY', 'UNVERIFIED']).toContain(proofBody.status);
+      expect(proofBody.coverage).toBeDefined();
+      expect(proofBody.metrics).toBeInstanceOf(Array);
+      expect(proofBody.repeatable_proof_hash).toMatch(/^sha256:/);
+    } else {
+      expect((await proof.text()).trim()).not.toBe('');
+    }
   });
 });

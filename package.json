@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
+    "type-check": "tsc --noEmit",
     "check:interactive": "node scripts/check-interactivity.js",
+    "test:unit": "ts-node --transpile-only tests/unit/runner.ts",
+    "test": "npm run check:interactive && npm run test:unit",
     "check": "npm run check:interactive && npm run check-build",
-    "check-build": "npm run check:interactive && npm run lint && NEXT_DIST_DIR=.next_check next build",
+    "check-build": "npm run check:interactive && npm run type-check && npm run lint && npm run test:unit && NEXT_DIST_DIR=.next_check next build",
     "start": "next start",
     "lint": "next lint",
     "clean": "rimraf .next",
