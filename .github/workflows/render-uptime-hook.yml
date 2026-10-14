@@ -17,14 +17,18 @@ jobs:
     timeout-minutes: 3
 
     steps:
-      - name: Ping Frontend KeepAlive Endpoint
+      - name: Ping Frontend KeepAlive Endpoints (Dev & Prod)
         run: |
-          echo "Pinging igaming-frontend-dev keepalive..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://igaming-frontend-dev.onrender.com/api/keepalive || echo "failed")
-          echo "Frontend KeepAlive HTTP status: $STATUS"
+          for URL in "https://igaming-frontend-dev.onrender.com/api/keepalive" "https://igaming-frontend-3ljx.onrender.com/api/keepalive"; do
+            echo "Pinging $URL..."
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "$URL" || echo "failed")
+            echo "KeepAlive HTTP status for $URL: $STATUS"
+          done
 
-      - name: Ping Frontend Health Endpoint
+      - name: Ping Frontend Health Endpoints (Dev & Prod)
         run: |
-          echo "Pinging igaming-frontend-dev health..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://igaming-frontend-dev.onrender.com/api/health || echo "failed")
-          echo "Frontend Health HTTP status: $STATUS"
+          for URL in "https://igaming-frontend-dev.onrender.com/api/health" "https://igaming-frontend-3ljx.onrender.com/api/health"; do
+            echo "Pinging $URL..."
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "$URL" || echo "failed")
+            echo "Health HTTP status for $URL: $STATUS"
+          done

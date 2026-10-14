@@ -51,6 +51,7 @@ export function Sidebar() {
 
   return (
     <aside
+      suppressHydrationWarning
       className={cn(
         "fixed left-0 z-50 flex h-full flex-col border-r bg-background transition-all duration-300",
         sidebarOpen ? "w-64" : "w-20"

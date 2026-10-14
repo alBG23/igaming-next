@@ -22,7 +22,10 @@ export async function GET() {
   return NextResponse.json({
     status: 'ok',
     frontend: {
-      service: 'igaming-frontend-dev',
+      service: process.env.RENDER_SERVICE_NAME || 
+        (process.env.NEXT_PUBLIC_APP_URL?.includes('3ljx') || process.env.NEXT_PUBLIC_APP_URL === 'https://igaming-frontend.onrender.com'
+          ? 'igaming-frontend'
+          : 'igaming-frontend-dev'),
       uptimeSeconds: Math.floor(process.uptime()),
     },
     backend: {

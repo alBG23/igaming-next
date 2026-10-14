@@ -1,48 +1,25 @@
 import { NextResponse } from 'next/server';
-import { DEFAULT_ADMIN_EMAIL } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
-interface FeedbackItem {
-  id: string;
-  category: string;
-  message: string;
-  rating?: number | null;
-  route?: string;
-  user_email: string;
-  status: string;
-  created_at: string;
-  metadata?: Record<string, any>;
-}
+function backendAuthHeaders(request: Request) {
+  const headers = new Headers({ 'Content-Type': 'application/json' });
+  const sessionCookie = request.headers
+    .get('cookie')
+    ?.split(';')
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith('ls_session='));
+  const authorization = request.headers.get('authorization');
 
-// In-memory fallback cache for fast client feedback loop
-const inMemoryFeedback: FeedbackItem[] = [
-  {
-    id: 'fb-init-1',
-    category: 'improvement',
-    rating: 5,
-    message: 'Add 30-day rolling cohort retention view on dashboard',
-    route: '/dashboard',
-    user_email: DEFAULT_ADMIN_EMAIL,
-    status: 'reviewed',
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: 'fb-init-2',
-    category: 'data',
-    rating: 4,
-    message: 'Allow filtering VIP players by crypto vs fiat deposit volume',
-    route: '/players',
-    user_email: DEFAULT_ADMIN_EMAIL,
-    status: 'new',
-    created_at: new Date(Date.now() - 36000000).toISOString(),
-  }
-];
+  if (sessionCookie) headers.set('Cookie', sessionCookie);
+  if (authorization) headers.set('Authorization', authorization);
+  return headers;
+}
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { category, message, rating, route: pageRoute, metadata } = body;
+    const { category, message, rating, route: pageRoute, metadata, contact_email } = body;
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json(
@@ -56,60 +33,43 @@ export async function POST(request: Request) {
       message: message.trim(),
       rating: typeof rating === 'number' ? rating : null,
       route: pageRoute || '/',
-      user_email: DEFAULT_ADMIN_EMAIL,
+      contact_email: typeof contact_email === 'string' ? contact_email.trim() : null,
       metadata: metadata || {},
     };
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-    try {
-      const res = await fetch(`${backendUrl}/api/v1/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(3000),
-      });
-
-      if (res.ok) {
-        const backendData = await res.json();
-        inMemoryFeedback.unshift(backendData);
-        return NextResponse.json(backendData, { status: 201 });
-      }
-    } catch {
-      // Backend unavailable or running standalone frontend — use fallback
-    }
-
-    const localItem: FeedbackItem = {
-      id: `fb-local-${Date.now()}`,
-      ...payload,
-      status: 'new',
-      created_at: new Date().toISOString(),
-    };
-    inMemoryFeedback.unshift(localItem);
-
-    return NextResponse.json(localItem, { status: 201 });
+    const res = await fetch(`${backendUrl}/api/v1/feedback`, {
+      method: 'POST',
+      headers: backendAuthHeaders(request),
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15000),
+    });
+    const responseBody = await res.json();
+    return NextResponse.json(responseBody, { status: res.status });
   } catch (error) {
     return NextResponse.json(
-      { error: 'Failed to process feedback', details: String(error) },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : 'Failed to process feedback',
+      },
+      { status: 503 }
     );
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   try {
     const res = await fetch(`${backendUrl}/api/v1/feedback`, {
+      headers: backendAuthHeaders(request),
       signal: AbortSignal.timeout(2000),
     });
-    if (res.ok) {
-      const data = await res.json();
-      return NextResponse.json(data);
-    }
-  } catch {
-    // Return local fallback list
+    const responseBody = await res.json();
+    return NextResponse.json(responseBody, { status: res.status });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to retrieve feedback' },
+      { status: 503 },
+    );
   }
-
-  return NextResponse.json(inMemoryFeedback);
 }

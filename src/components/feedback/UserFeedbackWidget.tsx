@@ -25,9 +25,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { DEFAULT_ADMIN_EMAIL } from '@/lib/constants';
 
 interface CategoryOption {
   id: string;
@@ -56,14 +56,17 @@ export function UserFeedbackWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [category, setCategory] = useState<string>('improvement');
   const [rating, setRating] = useState<number | null>(5);
+  const [userEmail, setUserEmail] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleOpen = () => {
     setIsOpen(true);
     setIsSubmitted(false);
+    setEmailSent(false);
     setErrorMessage(null);
   };
 
@@ -85,13 +88,20 @@ export function UserFeedbackWidget() {
     setIsSubmitting(true);
     setErrorMessage(null);
 
+    const contactEmail = userEmail.trim();
+    if (contactEmail && !/^\S+@\S+\.\S+$/.test(contactEmail)) {
+      setErrorMessage('Please enter a valid contact email address.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const payload = {
         category,
         message: message.trim(),
         rating,
         route: pathname || '/',
-        user_email: DEFAULT_ADMIN_EMAIL,
+        contact_email: contactEmail || null,
         metadata: {
           viewport: typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'unknown',
           userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
@@ -99,21 +109,29 @@ export function UserFeedbackWidget() {
         },
       };
 
-      const res = await fetch('/api/feedback', {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${backendUrl}/api/v1/feedback`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        throw new Error('Failed to record feedback');
+        const response = await res.json();
+        throw new Error(response.detail || response.error || 'Could not submit feedback.');
       }
 
+      const response = await res.json();
+      setEmailSent(response.email_sent === true);
       setIsSubmitted(true);
       setMessage('');
-    } catch {
-      setErrorMessage('Could not send feedback right now. Your note was saved locally.');
-      setIsSubmitted(true);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Could not submit feedback. Please try again.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -149,13 +167,19 @@ export function UserFeedbackWidget() {
 
           {isSubmitted ? (
             <div className="py-8 text-center space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                <CheckCircle2 className="h-8 w-8" />
+              <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${emailSent ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-700'}`}>
+                {emailSent ? <CheckCircle2 className="h-8 w-8" /> : <HelpCircle className="h-8 w-8" />}
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-semibold text-gray-900">Thank You for Your Feedback!</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {emailSent ? 'Thank You for Your Feedback!' : 'Feedback Recorded, Email Not Sent'}
+                </h3>
                 <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                  Your suggestion for <span className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">{pathname}</span> has been logged and queued for platform updates.
+                  {emailSent ? (
+                    <>Your feedback for <span className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">{pathname}</span> was recorded and emailed to the platform administrator.</>
+                  ) : (
+                    'Your feedback was recorded, but the notification email could not be sent. The Render backend email service needs to be configured or checked.'
+                  )}
                 </p>
               </div>
               <Button onClick={handleClose} className="mt-4 bg-indigo-600 hover:bg-indigo-700">
@@ -242,6 +266,20 @@ export function UserFeedbackWidget() {
                 </div>
               </div>
 
+              <div className="space-y-1.5">
+                <Label htmlFor="feedback-email" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Contact Email (Optional)
+                </Label>
+                <Input
+                  id="feedback-email"
+                  type="email"
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="text-sm"
+                />
+              </div>
+
               {/* Message Textarea */}
               <div className="space-y-1.5">
                 <Label htmlFor="feedback-message" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -256,8 +294,7 @@ export function UserFeedbackWidget() {
                   className="resize-none text-sm"
                   required
                 />
-                <div className="flex justify-between items-center text-[11px] text-gray-400">
-                  <span>Logged as {DEFAULT_ADMIN_EMAIL}</span>
+                <div className="flex justify-end items-center text-[11px] text-gray-400">
                   <span>{message.length} / 4000 chars</span>
                 </div>
               </div>

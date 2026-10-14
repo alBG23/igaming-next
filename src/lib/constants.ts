@@ -6,13 +6,13 @@
  */
 
 // System Admin Persona
-export const DEFAULT_ADMIN_EMAIL = 'admin@brightgaming.com';
+export const DEFAULT_ADMIN_EMAIL = 'alex@brightgaming.com';
 export const DEFAULT_ADMIN_NAME = 'Admin Operator';
 export const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 export const ADMIN_NAME = DEFAULT_ADMIN_NAME;
 
 // System Analyst Persona
-export const DEFAULT_ANALYST_EMAIL = 'analyst@brightgaming.com';
+export const DEFAULT_ANALYST_EMAIL = 'alex@brightgaming.com';
 export const DEFAULT_ANALYST_NAME = 'Analyst Operator';
 export const ANALYST_EMAIL = DEFAULT_ANALYST_EMAIL;
 export const ANALYST_NAME = DEFAULT_ANALYST_NAME;

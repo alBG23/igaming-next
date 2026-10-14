@@ -37,7 +37,7 @@ services:
     runtime: node
     region: frankfurt
     plan: free
-    branch: feature/render-dev-infra
+    branch: dev
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npx next start -p $PORT
     healthCheckPath: /api/health
