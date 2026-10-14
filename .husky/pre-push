@@ -1,8 +1,10 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
 
-export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin"
+export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:$HOME/.local/bin"
 
-echo "🔍 [pre-push] Verifying Next.js build and linting before pushing..."
-npm run check-build
-echo "✔ [pre-push] Build validation passed cleanly."
+if [ -x "../scripts/run_precommit_all.sh" ]; then
+    ../scripts/run_precommit_all.sh --all
+else
+    npm run check-build
+fi
