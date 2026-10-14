@@ -4,11 +4,14 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 
-const WORKSPACE_ROOT = path.resolve(__dirname, '../../..');
-const SCRIPT_PATH = path.join(WORKSPACE_ROOT, 'scripts/self_healing_precommit.py');
+const REPO_ROOT = path.resolve(__dirname, '../..');
+const LOCAL_SCRIPT = path.join(REPO_ROOT, 'scripts/self_healing_precommit.py');
+const PARENT_SCRIPT = path.resolve(REPO_ROOT, '../scripts/self_healing_precommit.py');
+const SCRIPT_PATH = fs.existsSync(LOCAL_SCRIPT) ? LOCAL_SCRIPT : PARENT_SCRIPT;
+const SCRIPTS_DIR = path.dirname(SCRIPT_PATH);
 
 test('Self-Healing Engine - Script exists and is executable', () => {
-  assert.ok(fs.existsSync(SCRIPT_PATH), 'self_healing_precommit.py must exist in scripts/');
+  assert.ok(fs.existsSync(SCRIPT_PATH), `self_healing_precommit.py must exist at ${SCRIPT_PATH}`);
   const stat = fs.statSync(SCRIPT_PATH);
   const isExecutable = Boolean(stat.mode & 0o111);
   assert.ok(isExecutable, 'self_healing_precommit.py must have executable permission (+x)');
@@ -26,7 +29,7 @@ test('Self-Healing Engine - CLI responds to --help with all flags', () => {
 test('Self-Healing Engine - BuildErrorClassifier identifies Next.js cache and prerender issues', () => {
   const pyCode = `
 import sys
-sys.path.insert(0, '${path.join(WORKSPACE_ROOT, 'scripts')}')
+sys.path.insert(0, '${SCRIPTS_DIR}')
 from self_healing_precommit import BuildErrorClassifier
 
 # Test 1: Cache error
