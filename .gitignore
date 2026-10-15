@@ -38,3 +38,17 @@ yarn-error.log*
 next-env.d.ts
 # aider
 .aider*
+scripts/__pycache__
+gsd-core
+graphify-out
+.github/hooks/*
+.github/scripts/*
+.github/skills/*
+.github/.gsd-profile
+.github/gsd-file-manifest.json
+.github/gsd-install-state.json
+secure*
+*recovery*
+github-recovery-codes.txt
+*.key
+*.pem
