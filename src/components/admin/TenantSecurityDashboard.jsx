@@ -16,7 +16,11 @@ import {
   Key,
   EyeOff,
   Radio,
+  Download,
+  Search,
+  Clock3,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 const PAGE_SIZE = 10;
 
@@ -69,6 +73,8 @@ export default function TenantSecurityDashboard() {
   const [runningProbes, setRunningProbes] = useState(false);
   const [tenantPage, setTenantPage] = useState(0);
   const [probePage, setProbePage] = useState(0);
+  const [tenantSearch, setTenantSearch] = useState('');
+  const [auditError, setAuditError] = useState('');
 
   const fetchAudit = async () => {
     try {
@@ -76,9 +82,13 @@ export default function TenantSecurityDashboard() {
       if (res.ok) {
         const json = await res.json();
         setAuditData(json);
+        setAuditError('');
+      } else {
+        setAuditError(`Audit request failed (${res.status}). Try again to refresh the verification results.`);
       }
     } catch (err) {
       console.error('Error fetching tenant audit data:', err);
+      setAuditError('Could not reach the tenant audit service. Check your connection and retry.');
     } finally {
       setLoading(false);
     }
@@ -97,8 +107,11 @@ export default function TenantSecurityDashboard() {
 
   const handleRunProbes = async () => {
     setRunningProbes(true);
-    await fetchAudit();
-    setRunningProbes(false);
+    try {
+      await fetchAudit();
+    } finally {
+      setRunningProbes(false);
+    }
   };
 
   if (loading) {
@@ -111,9 +124,27 @@ export default function TenantSecurityDashboard() {
   }
 
   const tenants = auditData?.tenants || [];
+  const filteredTenants = tenants.filter(tenant =>
+    `${tenant.name} ${tenant.id} ${tenant.slug}`.toLowerCase().includes(tenantSearch.trim().toLowerCase())
+  );
   const probes = auditData?.probes || [];
-  const allPassed = auditData?.allIsolationProbesPassed ?? true;
-  const visibleTenants = tenants.slice(tenantPage * PAGE_SIZE, (tenantPage + 1) * PAGE_SIZE);
+  const allPassed = auditData?.allIsolationProbesPassed === true;
+  const passedProbeCount = probes.filter(probe => probe.passed).length;
+  const visibleTenants = filteredTenants.slice(tenantPage * PAGE_SIZE, (tenantPage + 1) * PAGE_SIZE);
+
+  const exportAudit = () => {
+    const rows = [
+      ['Tenant ID', 'Operator', 'Isolation mode', 'PII masking', 'AI context scope', 'Status'],
+      ...tenants.map(tenant => [tenant.id, tenant.name, tenant.isolationMode, tenant.piiMaskingEnabled ? 'Enforced' : 'Not enabled', tenant.aiKnowledgeScoped ? 'Scoped' : 'Not scoped', tenant.status]),
+    ];
+    const csv = rows.map(row => row.map(value => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'tenant-security-audit.csv';
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const visibleProbes = probes.slice(probePage * PAGE_SIZE, (probePage + 1) * PAGE_SIZE);
 
   return (
@@ -125,9 +156,13 @@ export default function TenantSecurityDashboard() {
             Multi-Tenant Security & AI Knowledge Isolation (P2)
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Hard isolation at the Database, Redis Cache, and LLM context layers. Provable zero cross-bleed.
+            Review cross-tenant access probes, tenant scoping settings, and the latest audit timestamp.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" onClick={exportAudit} disabled={tenants.length === 0} className="flex items-center gap-2">
+          <Download className="h-4 w-4" /> Export tenants
+        </Button>
         <Button
           id="run-isolation-probes-btn"
           onClick={handleRunProbes}
@@ -137,6 +172,22 @@ export default function TenantSecurityDashboard() {
           <Radio className={`h-4 w-4 ${runningProbes ? 'animate-pulse' : ''}`} />
           Run Isolation Verification Probes
         </Button>
+        </div>
+      </div>
+
+      {auditError && (
+        <div role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 flex flex-wrap items-center justify-between gap-3">
+          <span>{auditError}</span>
+          <Button type="button" size="sm" variant="outline" onClick={handleRunProbes} disabled={runningProbes}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${runningProbes ? 'animate-spin' : ''}`} /> Retry audit
+          </Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Registered tenants</p><p className="mt-1 text-2xl font-semibold">{tenants.length}</p><p className="text-xs text-muted-foreground">Configured in this environment</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Isolation probes passed</p><p className="mt-1 text-2xl font-semibold">{passedProbeCount}<span className="text-base text-muted-foreground"> / {probes.length}</span></p><p className="text-xs text-muted-foreground">Cross-tenant requests blocked</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="flex items-center gap-1 text-xs text-muted-foreground"><Clock3 className="h-3.5 w-3.5" /> Last audit</p><p className="mt-2 text-sm font-medium">{auditData?.isolationAudit?.auditedAt ? new Date(auditData.isolationAudit.auditedAt).toLocaleString() : 'Not available'}</p><p className="text-xs text-muted-foreground">Run verification to refresh</p></CardContent></Card>
       </div>
 
       {/* Isolation Status Banner */}
@@ -151,14 +202,14 @@ export default function TenantSecurityDashboard() {
           )}
           <div>
             <span className="font-semibold text-sm">
-              {allPassed ? 'Provable Tenant Isolation Active' : 'Isolation Alert Detected'}
+              {allPassed ? 'Tenant isolation probes passed' : auditData ? 'Isolation verification needs attention' : 'Awaiting isolation verification'}
             </span>
             <p className="text-xs opacity-90 mt-0.5">
-              100% of cross-tenant probe attempts successfully intercepted and blocked at layer boundaries.
+              {probes.length ? `${passedProbeCount} of ${probes.length} cross-tenant access attempts were blocked as expected.` : 'Run verification to check cross-tenant access boundaries.'}
             </p>
           </div>
         </div>
-        <Badge className="bg-emerald-600 text-white">Zero Bleed Verified</Badge>
+        <Badge className={allPassed ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}>{allPassed ? 'Verification passed' : 'Review results'}</Badge>
       </div>
 
       {/* Layer Isolation Pillars */}
@@ -171,8 +222,8 @@ export default function TenantSecurityDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1 text-xs text-gray-600">
-            <Badge className="bg-emerald-100 text-emerald-800 mb-1">STRICT_RLS</Badge>
-            <p>Every SQL query enforces tenant_id scoping at Postgres engine boundary.</p>
+            <Badge className="bg-emerald-100 text-emerald-800 mb-1">{auditData?.isolationAudit?.dbRowLevelIsolation?.replaceAll('_', ' ') || 'STATUS UNKNOWN'}</Badge>
+            <p>Tenant scoped query access is checked at the data boundary. Review the latest audit timestamp above.</p>
           </CardContent>
         </Card>
 
@@ -184,8 +235,8 @@ export default function TenantSecurityDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1 text-xs text-gray-600">
-            <Badge className="bg-emerald-100 text-emerald-800 mb-1">NAMESPACED</Badge>
-            <p>Cache keys prefixed strictly by tenant UUID (tenant:id:*). No shared memory keys.</p>
+            <Badge className="bg-emerald-100 text-emerald-800 mb-1">{auditData?.isolationAudit?.cacheNamespaceIsolation?.replaceAll('_', ' ') || 'STATUS UNKNOWN'}</Badge>
+            <p>Cache keys use tenant namespaces to reduce the risk of cross-tenant cache access.</p>
           </CardContent>
         </Card>
 
@@ -197,8 +248,8 @@ export default function TenantSecurityDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1 text-xs text-gray-600">
-            <Badge className="bg-emerald-100 text-emerald-800 mb-1">ZERO_BLEED</Badge>
-            <p>Prompts and vector memory isolated. One casino's rules never bleed into another.</p>
+            <Badge className="bg-emerald-100 text-emerald-800 mb-1">{auditData?.isolationAudit?.aiContextScoped?.replaceAll('_', ' ') || 'STATUS UNKNOWN'}</Badge>
+            <p>Retrieved tenant knowledge is scoped to the active tenant context.</p>
           </CardContent>
         </Card>
 
@@ -210,8 +261,8 @@ export default function TenantSecurityDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1 text-xs text-gray-600">
-            <Badge className="bg-emerald-100 text-emerald-800 mb-1">ACTIVE</Badge>
-            <p>Automatic redaction of player emails, names, and credentials across all report paths.</p>
+            <Badge className="bg-emerald-100 text-emerald-800 mb-1">{auditData?.isolationAudit?.piiMaskingAudit?.replaceAll('_', ' ') || 'STATUS UNKNOWN'}</Badge>
+            <p>Tenant configuration reports whether PII masking is enabled. Verify report paths separately.</p>
           </CardContent>
         </Card>
       </div>
@@ -221,8 +272,12 @@ export default function TenantSecurityDashboard() {
         <CardHeader className="p-4">
           <CardTitle className="text-base">Registered Tenants & Scoping Policies</CardTitle>
           <CardDescription className="text-xs">
-            Multi-brand operators provisioned with dedicated encryption and context walls.
+            Search configured tenants and review their isolation and data handling settings.
           </CardDescription>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-sm"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input aria-label="Search tenants" placeholder="Search by tenant, name, or slug" value={tenantSearch} onChange={event => { setTenantSearch(event.target.value); setTenantPage(0); }} className="pl-9" /></div>
+            <p className="text-xs text-muted-foreground" aria-live="polite">Showing {filteredTenants.length} of {tenants.length} tenants</p>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -245,10 +300,10 @@ export default function TenantSecurityDashboard() {
                     <Badge variant="outline" className="text-xs bg-slate-50">{t.isolationMode}</Badge>
                   </TableCell>
                   <TableCell>
-                    <span className="text-xs text-emerald-700 font-medium">✓ Enforced</span>
+                    <span className={`text-xs font-medium ${t.piiMaskingEnabled ? 'text-emerald-700' : 'text-amber-700'}`}>{t.piiMaskingEnabled ? '✓ Enabled' : 'Not enabled'}</span>
                   </TableCell>
                   <TableCell>
-                    <span className="text-xs text-indigo-700 font-medium">✓ Scoped Memory</span>
+                    <span className={`text-xs font-medium ${t.aiKnowledgeScoped ? 'text-indigo-700' : 'text-amber-700'}`}>{t.aiKnowledgeScoped ? '✓ Scoped Memory' : 'Not scoped'}</span>
                   </TableCell>
                   <TableCell>
                     <Badge className="bg-emerald-100 text-emerald-800">{t.status}</Badge>
@@ -262,6 +317,13 @@ export default function TenantSecurityDashboard() {
                   </TableCell>
                 </TableRow>
               )}
+              {tenants.length > 0 && filteredTenants.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    No tenants match “{tenantSearch}”. Try another name, ID, or slug.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -269,7 +331,7 @@ export default function TenantSecurityDashboard() {
           label="tenants"
           currentPage={tenantPage}
           onPageChange={setTenantPage}
-          totalItems={tenants.length}
+          totalItems={filteredTenants.length}
         />
       </Card>
 

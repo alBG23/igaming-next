@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { RenderKeepAliveProvider } from "@/components/render-keepalive-provider"
 import { UserFeedbackWidget } from "@/components/feedback/UserFeedbackWidget"
+import { VendorProvider } from "@/lib/vendor-context"
 
 const inter = Inter({ 
   variable: '--font-inter',
@@ -43,19 +44,21 @@ export default function RootLayout({
     <html lang="en" className={cn(inter.variable, "h-full")} suppressHydrationWarning>
       <body className="h-full">
         <ThemeProvider>
-          <RenderKeepAliveProvider>
-            <div className="flex h-full">
-              <div className="w-64 shrink-0">
-                <Sidebar />
-              </div>
-              <main className="flex-1 overflow-y-auto p-8">
-                <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
-                  {children}
+          <VendorProvider>
+            <RenderKeepAliveProvider>
+              <div className="flex h-full">
+                <div className="w-64 shrink-0">
+                  <Sidebar />
                 </div>
-              </main>
-            </div>
-            <UserFeedbackWidget />
-          </RenderKeepAliveProvider>
+                <main className="flex-1 overflow-y-auto p-8">
+                  <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
+                    {children}
+                  </div>
+                </main>
+              </div>
+              <UserFeedbackWidget />
+            </RenderKeepAliveProvider>
+          </VendorProvider>
         </ThemeProvider>
       </body>
     </html>

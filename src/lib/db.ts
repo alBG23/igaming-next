@@ -5,10 +5,33 @@ const globalForDb = global as unknown as { pgPool?: Pool }
 
 export function getDbPool(): Pool {
   if (!globalForDb.pgPool) {
-    const connectionString =
-      process.env.DATABASE_URL ||
-      process.env.INTERNAL_DB ||
-      'postgresql://localhost:5432/luckystart'
+    const target = (process.env.DATABASE_TARGET || '').toLowerCase()
+    let connectionString = process.env.DATABASE_URL
+
+    if (target === 'dev') {
+      connectionString =
+        process.env.DEV_DATABASE_URL ||
+        process.env.DEV_DB_URL ||
+        process.env.EXTERNAL_DB ||
+        process.env.DATABASE_URL
+    } else if (target === 'prod') {
+      connectionString =
+        process.env.PROD_DATABASE_URL ||
+        process.env.PROD_DB_URL ||
+        process.env.DATABASE_URL
+    } else if (target === 'local') {
+      connectionString =
+        process.env.LOCAL_DATABASE_URL ||
+        process.env.LOCAL_DB_URL ||
+        'postgresql://localhost:5432/luckystart'
+    }
+
+    if (!connectionString) {
+      connectionString =
+        process.env.DATABASE_URL ||
+        process.env.INTERNAL_DB ||
+        'postgresql://localhost:5432/luckystart'
+    }
 
     const isSsl = connectionString.includes('sslmode=require') || connectionString.includes('render.com')
 

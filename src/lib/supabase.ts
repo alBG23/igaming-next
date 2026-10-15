@@ -703,17 +703,20 @@ export async function testAllViews(): Promise<TestResults> {
   return results
 }
 
-export async function getAvailableTables() {
-  try {
-    const { data, error } = await supabase
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public');
-
-    if (error) throw error;
-    return data?.map(table => table.table_name) || [];
-  } catch (error) {
-    console.error('Error fetching available tables:', error);
-    return [];
-  }
+export async function getAvailableTables(): Promise<string[]> {
+  // PostgREST REST API does not expose Postgres internal information_schema views.
+  // Return authoritative list of datalake replica views available in public schema.
+  return [
+    'users_view',
+    'accounts_view',
+    'profiles_view',
+    'payments_view',
+    'a8r_games_view',
+    'casino_games_view',
+    'traffic_reports',
+    'income_reports',
+    'player_cohorts',
+    'bonus_issues_view',
+    'freespin_issues_view',
+  ];
 } 

@@ -20,10 +20,21 @@ import {
   Sparkles,
   ShieldCheck,
   MessageSquare,
+  ExternalLink,
+  Globe,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/constants"
+import { useVendor, VENDORS } from "@/lib/vendor-context"
+import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const navigationItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -43,6 +54,7 @@ const navigationItems = [
 export function Sidebar() {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { currentVendor, setVendorId, availableVendors } = useVendor()
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen)
@@ -59,14 +71,93 @@ export function Sidebar() {
     >
       <div className="flex h-16 items-center justify-between border-b px-4">
         {sidebarOpen ? (
-          <h1 className="text-lg font-semibold">iGaming Analytics</h1>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">iGaming Analytics</h1>
+          </div>
         ) : (
           <h1 className="text-lg font-semibold">IA</h1>
         )}
-        <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+        <Button
+          id="sidebar-toggle-btn"
+          aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          variant="ghost"
+          size="icon"
+          onClick={toggleSidebar}
+        >
           <Menu className="h-5 w-5" />
         </Button>
       </div>
+
+      {/* Vendor Selector Combobox directly under iGaming Analytics */}
+      {sidebarOpen ? (
+        <div className="border-b bg-muted/20 px-3 py-2.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+              Vendor Platform
+            </span>
+            <a
+              href={currentVendor.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-primary hover:underline inline-flex items-center gap-0.5 font-medium"
+              title={`Visit ${currentVendor.name} (${currentVendor.url})`}
+            >
+              <span>{currentVendor.name}</span>
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          </div>
+          <Select value={currentVendor.id} onValueChange={(val) => setVendorId(val)}>
+            <SelectTrigger
+              id="vendor-selector-combobox"
+              aria-label="Select iGaming Vendor Platform"
+              className="h-8 text-xs bg-background border-border/80"
+            >
+              <SelectValue placeholder="Select Vendor Platform" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableVendors.map((vendor) => (
+                <SelectItem key={vendor.id} value={vendor.id}>
+                  <div className="flex items-center justify-between w-full gap-2">
+                    <span className="font-medium text-xs">{vendor.name}</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[9px] py-0 px-1 font-semibold",
+                        vendor.status === "active"
+                          ? "border-emerald-500/50 text-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {vendor.badge}
+                    </Badge>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-[10px] text-muted-foreground/80 truncate">
+            {currentVendor.description}
+          </p>
+        </div>
+      ) : (
+        <div className="border-b p-2 flex flex-col items-center justify-center gap-1">
+          <a
+            href={currentVendor.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Active Vendor: ${currentVendor.name} (${currentVendor.url})`}
+            className="flex items-center justify-center"
+          >
+            <Badge
+              variant="outline"
+              className="text-[10px] font-bold px-1.5 py-0.5 border-emerald-500/60 text-emerald-600 hover:bg-emerald-50/50 cursor-pointer"
+            >
+              SS
+            </Badge>
+          </a>
+        </div>
+      )}
       <ScrollArea className="flex-1">
         <nav className="flex flex-col gap-1 p-2">
           {navigationItems.map((item) => {

@@ -6,12 +6,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, currency: string = 'EUR'): string {
+  const safeCurrency = (typeof currency === 'string' && /^[A-Za-z]{3}$/.test(currency)) ? currency : 'EUR';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: currency,
+    currency: safeCurrency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount)
+  }).format(Number.isFinite(amount) ? amount : 0)
 }
 
 export function formatNumber(num: number): string {
