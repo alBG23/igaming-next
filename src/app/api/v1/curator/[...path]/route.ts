@@ -36,7 +36,7 @@ function backendHeaders(request: Request) {
   if (accept) headers.set('accept', accept);
   if (authorization) headers.set('authorization', authorization);
   if (sessionCookie) headers.set('cookie', sessionCookie);
-  headers.set('user-agent', userAgent || 'Bright-UI-Curator-Proxy/1.0');
+  headers.set('user-agent', (userAgent ? `${userAgent} ` : '') + 'bright-ui-curator-proxy/1.0');
   return headers;
 }
 
