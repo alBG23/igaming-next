@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, usePathname } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -39,11 +40,83 @@ import {
 } from 'lucide-react';
 import KnowledgeCurator from '@/components/admin/KnowledgeCurator';
 import SupportTickets from '@/components/admin/SupportTickets';
+import TenantSecurityDashboard from '@/components/admin/TenantSecurityDashboard';
 import { DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_NAME } from '@/lib/constants';
 
-export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('general');
+const VALID_TABS = [
+  'general',
+  'security',
+  'notifications',
+  'ai-knowledge',
+  'tenant-security',
+  'b2b-support',
+] as const;
+
+type SettingsTab = typeof VALID_TABS[number];
+
+function SettingsContent() {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const tabQuery = searchParams.get('tab');
+  const initialTab = tabQuery && VALID_TABS.includes(tabQuery as SettingsTab)
+    ? tabQuery
+    : 'general';
+
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  // Sync tab state when URL search params or hash change
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && VALID_TABS.includes(tabParam as SettingsTab)) {
+      setActiveTab(tabParam);
+    } else if (!tabParam && typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && VALID_TABS.includes(hash as SettingsTab)) {
+        setActiveTab(hash);
+      }
+    }
+  }, [searchParams]);
+
+  // Sync with browser back/forward buttons (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab') || window.location.hash.replace('#', '');
+      if (tabParam && VALID_TABS.includes(tabParam as SettingsTab)) {
+        setActiveTab(tabParam);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      params.set('tab', val);
+      const newUrl = `${pathname}?${params.toString()}`;
+      window.history.pushState(null, '', newUrl);
+    } catch (err) {
+      console.error('Failed to update URL search params', err);
+    }
+  };
+
+  const handleCopyShareLink = () => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', activeTab);
+      navigator.clipboard.writeText(url.toString());
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+      showNotification('success', `Shareable link for '${activeTab}' tab copied to clipboard!`);
+    } catch {
+      showNotification('error', 'Failed to copy link to clipboard.');
+    }
+  };
 
   // General Settings State
   const [fullName, setFullName] = useState(DEFAULT_ADMIN_NAME);
@@ -291,24 +364,40 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Page Title */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Configure administration preferences, security policies, and system notification rules.
-        </p>
+      {/* Page Title & Share Tab Link */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Configure administration preferences, security policies, and system notification rules.
+          </p>
+        </div>
+        <Button
+          id="copy-tab-link-btn"
+          variant="outline"
+          size="sm"
+          onClick={handleCopyShareLink}
+          className="gap-2 shrink-0"
+        >
+          {copiedLink ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+          {copiedLink ? 'Link Copied!' : 'Copy Tab Link'}
+        </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="ai-knowledge" className="gap-1.5">
+          <TabsTrigger value="general" id="tab-trigger-general">General</TabsTrigger>
+          <TabsTrigger value="security" id="tab-trigger-security">Security</TabsTrigger>
+          <TabsTrigger value="notifications" id="tab-trigger-notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="ai-knowledge" id="tab-trigger-ai-knowledge" className="gap-1.5">
             <BrainCircuit className="h-4 w-4" />
             AI Knowledge (P3)
           </TabsTrigger>
-          <TabsTrigger value="b2b-support" className="gap-1.5">
+          <TabsTrigger value="tenant-security" id="tab-trigger-tenant-security" className="gap-1.5">
+            <Shield className="h-4 w-4" />
+            Tenant Security (P2)
+          </TabsTrigger>
+          <TabsTrigger value="b2b-support" id="tab-trigger-b2b-support" className="gap-1.5">
             <HeadphonesIcon className="h-4 w-4" />
             B2B Support (P6)
           </TabsTrigger>
@@ -623,6 +712,11 @@ export default function SettingsPage() {
           <KnowledgeCurator />
         </TabsContent>
 
+        {/* ================= TENANT SECURITY TAB (P2) ================= */}
+        <TabsContent value="tenant-security">
+          <TenantSecurityDashboard />
+        </TabsContent>
+
         {/* ================= B2B SUPPORT TAB (P6) ================= */}
         <TabsContent value="b2b-support">
           <SupportTickets />
@@ -749,5 +843,20 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground mr-2" />
+          <span className="text-muted-foreground text-sm font-medium">Loading settings...</span>
+        </div>
+      }
+    >
+      <SettingsContent />
+    </Suspense>
   );
 }

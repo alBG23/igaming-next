@@ -24,12 +24,45 @@ test.describe('Maximoos Client-Readiness Priorities (CR1 - CR8) E2E Suite', () =
     await page.waitForLoadState('domcontentloaded');
 
     // Switch to Security Tab
-    const securityTab = page.getByRole('tab', { name: 'Security' });
+    const securityTab = page.getByRole('tab', { name: 'Security', exact: true });
     await securityTab.click();
 
     // Verify PII Masking & Tenant Isolation Guard switch
     const piiSwitch = page.locator('#pii-masking-switch');
     await expect(piiSwitch).toBeVisible();
+
+    // Switch to Tenant Security (P2) Tab
+    const tenantTab = page.getByRole('tab', { name: 'Tenant Security (P2)' });
+    await expect(tenantTab).toBeVisible();
+    await tenantTab.click();
+
+    // Verify Tenant Security Dashboard renders
+    await expect(page.locator('text=Multi-Tenant Security & AI Knowledge Isolation (P2)')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=Provable Tenant Isolation Active')).toBeVisible();
+    await expect(page.locator('text=Zero Bleed Verified')).toBeVisible();
+
+    // Verify and trigger live isolation probes button
+    const probeBtn = page.locator('#run-isolation-probes-btn');
+    await expect(probeBtn).toBeVisible();
+    await probeBtn.click();
+
+    // Verify probes table shows blocked status
+    await expect(page.locator('text=PASSED (BLOCKED)').first()).toBeVisible({ timeout: 5000 });
+
+    // Verify URL updated to reflect active tab
+    await expect(page).toHaveURL(/.*tab=tenant-security/);
+
+    // Verify Copy Tab Link button is interactive
+    const copyLinkBtn = page.locator('#copy-tab-link-btn');
+    await expect(copyLinkBtn).toBeVisible();
+    await copyLinkBtn.click();
+    await expect(page.locator('text=copied to clipboard')).toBeVisible();
+
+    // Verify direct URL loading with tab query param opens target tab
+    await page.goto('/settings?tab=b2b-support');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('text=B2B Support & Ticket Operations (P6)')).toBeVisible({ timeout: 5000 });
+    await expect(page).toHaveURL(/.*tab=b2b-support/);
   });
 
   test('CR3: Scale & reliability wide-window responsiveness (/dashboard)', async ({ page }) => {

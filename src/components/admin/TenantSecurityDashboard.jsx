@@ -71,6 +71,7 @@ export default function TenantSecurityDashboard() {
           </p>
         </div>
         <Button
+          id="run-isolation-probes-btn"
           onClick={handleRunProbes}
           disabled={runningProbes}
           className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
