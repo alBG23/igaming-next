@@ -54,7 +54,7 @@ test.describe('Maximoos Tech Priorities (P0 - P6) Validation Suite', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Switch to Security Tab
-    const securityTab = page.getByRole('tab', { name: 'Security' });
+    const securityTab = page.getByRole('tab', { name: 'Security', exact: true });
     await securityTab.click();
 
     // Verify PII Masking & Tenant Isolation Guard switch
@@ -99,7 +99,7 @@ test.describe('Maximoos Tech Priorities (P0 - P6) Validation Suite', () => {
     await expect(fullNameInput).toHaveValue(/.+/);
 
     // Verify Security emergency backup codes action
-    await page.getByRole('tab', { name: 'Security' }).click();
+    await page.getByRole('tab', { name: 'Security', exact: true }).click();
     const backupCodesBtn = page.getByRole('button', { name: /Generate Codes/i });
     await expect(backupCodesBtn).toBeVisible();
   });

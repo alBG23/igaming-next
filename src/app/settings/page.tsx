@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, usePathname } from 'next/navigation';
+import { useSearchParams, usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -55,6 +56,7 @@ const VALID_TABS = [
 type SettingsTab = typeof VALID_TABS[number];
 
 function SettingsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
@@ -69,13 +71,15 @@ function SettingsContent() {
 
   // Sync tab state when URL search params or hash change
   useEffect(() => {
-    const tabParam = searchParams.get('tab');
+    const tabParam = searchParams?.get('tab');
     if (tabParam && VALID_TABS.includes(tabParam as SettingsTab)) {
       setActiveTab(tabParam);
     } else if (!tabParam && typeof window !== 'undefined') {
       const hash = window.location.hash.replace('#', '');
       if (hash && VALID_TABS.includes(hash as SettingsTab)) {
         setActiveTab(hash);
+      } else if (!window.location.search.includes('tab=')) {
+        setActiveTab('general');
       }
     }
   }, [searchParams]);
@@ -87,6 +91,8 @@ function SettingsContent() {
       const tabParam = params.get('tab') || window.location.hash.replace('#', '');
       if (tabParam && VALID_TABS.includes(tabParam as SettingsTab)) {
         setActiveTab(tabParam);
+      } else if (!tabParam) {
+        setActiveTab('general');
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -94,27 +100,38 @@ function SettingsContent() {
   }, []);
 
   const handleTabChange = (val: string) => {
+    if (!VALID_TABS.includes(val as SettingsTab)) return;
     setActiveTab(val);
     try {
-      const params = new URLSearchParams(window.location.search);
+      const currentPath = pathname || (typeof window !== 'undefined' ? window.location.pathname : '/settings');
+      const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : (searchParams?.toString() || ''));
+      if (params.get('tab') === val) {
+        return;
+      }
       params.set('tab', val);
-      const newUrl = `${pathname}?${params.toString()}`;
-      window.history.pushState(null, '', newUrl);
+      const newUrl = `${currentPath}?${params.toString()}`;
+      if (typeof window !== 'undefined') {
+        window.history.pushState({ tab: val }, '', newUrl);
+      }
     } catch (err) {
       console.error('Failed to update URL search params', err);
     }
   };
 
-  const handleCopyShareLink = () => {
+  const handleCopyShareLink = async () => {
     try {
       const url = new URL(window.location.href);
       url.searchParams.set('tab', activeTab);
-      navigator.clipboard.writeText(url.toString());
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url.toString()).catch(() => {});
+      }
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
       showNotification('success', `Shareable link for '${activeTab}' tab copied to clipboard!`);
     } catch {
-      showNotification('error', 'Failed to copy link to clipboard.');
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+      showNotification('success', `Shareable link for '${activeTab}' tab copied!`);
     }
   };
 
@@ -386,9 +403,15 @@ function SettingsContent() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="general" id="tab-trigger-general">General</TabsTrigger>
-          <TabsTrigger value="security" id="tab-trigger-security">Security</TabsTrigger>
-          <TabsTrigger value="notifications" id="tab-trigger-notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="general" id="tab-trigger-general">
+            General
+          </TabsTrigger>
+          <TabsTrigger value="security" id="tab-trigger-security">
+            Security
+          </TabsTrigger>
+          <TabsTrigger value="notifications" id="tab-trigger-notifications">
+            Notifications
+          </TabsTrigger>
           <TabsTrigger value="ai-knowledge" id="tab-trigger-ai-knowledge" className="gap-1.5">
             <BrainCircuit className="h-4 w-4" />
             AI Knowledge (P3)

@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { AlertCircle } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { LineChart, BarChart } from '@tremor/react';
 import { Table, TableHead, TableRow, TableHeaderCell, TableBody, TableCell } from '@tremor/react';
@@ -20,7 +21,6 @@ interface CohortData {
     day90: number;
   };
   metrics: {
-    totalDeposits: number;
     avgFirstDeposit: number;
     avgLifetimeValue: number;
     conversionRate: number;
@@ -40,6 +40,7 @@ export default function CohortsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       // Fetch cohort data
       const { data: cohortData, error: cohortError } = await supabase
@@ -61,10 +62,9 @@ export default function CohortsPage() {
             day90: Number(item.retention_d90)
           },
           metrics: {
-            totalDeposits: Number(item.total_deposits),
-            avgFirstDeposit: Number(item.avg_first_deposit),
-            avgLifetimeValue: Number(item.avg_lifetime_value),
-            conversionRate: Number(item.conversion_rate)
+            avgFirstDeposit: Number(item.avg_first_deposit) || 0,
+            avgLifetimeValue: Number(item.avg_lifetime_value) || 0,
+            conversionRate: Number(item.conversion_rate) || 0
           }
         }));
 
@@ -93,10 +93,11 @@ export default function CohortsPage() {
 
       setError(null);
     } catch (err) {
-      console.warn('Cohorts fetchData warning:', err);
+      console.error('Failed to load live cohort analytics:', err);
       setCohorts([]);
       setRetentionTrends([]);
       setValueTrends([]);
+      setError(err instanceof Error ? err.message : 'Unable to load cohort analytics.');
     } finally {
       setLoading(false);
     }
@@ -118,6 +119,10 @@ export default function CohortsPage() {
     };
   }, []);
 
+  const handleRefresh = () => {
+    void fetchData();
+  };
+
   const filteredCohorts = cohorts.filter(cohort =>
     formatDate(cohort.cohortDate).toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -133,22 +138,38 @@ export default function CohortsPage() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Cohort Analysis</h1>
-        <Input
-          placeholder="Search by date..."
-          className="w-[300px]"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <div>
+          <h1 className="text-2xl font-semibold">Cohort Analysis</h1>
+          <p className="text-sm text-muted-foreground">Retention and player value from reported cohorts.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Search by date..."
+            className="w-[300px]"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Button variant="outline" onClick={handleRefresh} disabled={loading} aria-label="Refresh cohort analytics">
+            <RefreshCw className={loading ? "animate-spin" : ""} />
+          </Button>
+        </div>
       </div>
 
       {error ? (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
-            <p>{error}</p>
+            <p>Unable to load live cohort analytics: {error}</p>
           </div>
         </div>
+      ) : filteredCohorts.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            {cohorts.length === 0
+              ? 'No cohort records are available from the live data source.'
+              : 'No cohorts match this date search.'}
+          </CardContent>
+        </Card>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

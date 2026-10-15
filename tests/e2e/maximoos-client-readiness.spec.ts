@@ -58,11 +58,22 @@ test.describe('Maximoos Client-Readiness Priorities (CR1 - CR8) E2E Suite', () =
     await copyLinkBtn.click();
     await expect(page.locator('text=copied to clipboard')).toBeVisible();
 
+
     // Verify direct URL loading with tab query param opens target tab
     await page.goto('/settings?tab=b2b-support');
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.locator('text=B2B Support & Ticket Operations (P6)')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=B2B Support Ticketing (P6)')).toBeVisible({ timeout: 5000 });
     await expect(page).toHaveURL(/.*tab=b2b-support/);
+
+    // Verify browser back history pagination returns to tenant-security tab
+    await page.goBack();
+    await expect(page).toHaveURL(/.*tab=tenant-security/);
+    await expect(page.locator('text=Multi-Tenant Security & AI Knowledge Isolation (P2)')).toBeVisible({ timeout: 5000 });
+
+    // Verify browser forward history pagination returns to b2b-support tab
+    await page.goForward();
+    await expect(page).toHaveURL(/.*tab=b2b-support/);
+    await expect(page.locator('text=B2B Support Ticketing (P6)')).toBeVisible({ timeout: 5000 });
   });
 
   test('CR3: Scale & reliability wide-window responsiveness (/dashboard)', async ({ page }) => {

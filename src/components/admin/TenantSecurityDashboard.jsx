@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,10 +18,57 @@ import {
   Radio,
 } from 'lucide-react';
 
+const PAGE_SIZE = 10;
+
+function PaginationControls({ label, currentPage, onPageChange, totalItems }) {
+  const pageCount = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const page = Math.min(currentPage, pageCount - 1);
+  const firstItem = totalItems === 0 ? 0 : page * PAGE_SIZE + 1;
+  const lastItem = Math.min((page + 1) * PAGE_SIZE, totalItems);
+
+  return (
+    <nav
+      aria-label={`${label} pagination`}
+      className="flex items-center justify-between gap-3 border-t px-4 py-3"
+    >
+      <span className="text-sm text-muted-foreground" aria-live="polite">
+        Showing {firstItem}-{lastItem} of {totalItems} {label}
+      </span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">
+          Page {page + 1} of {pageCount}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-label={`Previous ${label} page`}
+          onClick={() => onPageChange(page - 1)}
+          disabled={page === 0}
+        >
+          Previous
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-label={`Next ${label} page`}
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= pageCount - 1}
+        >
+          Next
+        </Button>
+      </div>
+    </nav>
+  );
+}
+
 export default function TenantSecurityDashboard() {
   const [loading, setLoading] = useState(true);
   const [auditData, setAuditData] = useState(null);
   const [runningProbes, setRunningProbes] = useState(false);
+  const [tenantPage, setTenantPage] = useState(0);
+  const [probePage, setProbePage] = useState(0);
 
   const fetchAudit = async () => {
     try {
@@ -39,6 +88,13 @@ export default function TenantSecurityDashboard() {
     fetchAudit();
   }, []);
 
+  useEffect(() => {
+    const tenantPageCount = Math.max(1, Math.ceil((auditData?.tenants?.length ?? 0) / PAGE_SIZE));
+    const probePageCount = Math.max(1, Math.ceil((auditData?.probes?.length ?? 0) / PAGE_SIZE));
+    setTenantPage(page => Math.min(page, tenantPageCount - 1));
+    setProbePage(page => Math.min(page, probePageCount - 1));
+  }, [auditData]);
+
   const handleRunProbes = async () => {
     setRunningProbes(true);
     await fetchAudit();
@@ -57,6 +113,8 @@ export default function TenantSecurityDashboard() {
   const tenants = auditData?.tenants || [];
   const probes = auditData?.probes || [];
   const allPassed = auditData?.allIsolationProbesPassed ?? true;
+  const visibleTenants = tenants.slice(tenantPage * PAGE_SIZE, (tenantPage + 1) * PAGE_SIZE);
+  const visibleProbes = probes.slice(probePage * PAGE_SIZE, (probePage + 1) * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -179,7 +237,7 @@ export default function TenantSecurityDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tenants.map(t => (
+              {visibleTenants.map(t => (
                 <TableRow key={t.id}>
                   <TableCell className="font-mono text-xs font-semibold">{t.id}</TableCell>
                   <TableCell className="font-medium text-xs">{t.name}</TableCell>
@@ -197,9 +255,22 @@ export default function TenantSecurityDashboard() {
                   </TableCell>
                 </TableRow>
               ))}
+              {tenants.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    No registered tenants are available.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
+        <PaginationControls
+          label="tenants"
+          currentPage={tenantPage}
+          onPageChange={setTenantPage}
+          totalItems={tenants.length}
+        />
       </Card>
 
       {/* Adversarial Probes Execution Table */}
@@ -226,8 +297,8 @@ export default function TenantSecurityDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {probes.map((probe, idx) => (
-                <TableRow key={idx}>
+              {visibleProbes.map((probe, idx) => (
+                <TableRow key={`${probe.testName}-${probe.sourceTenantId}-${probe.targetTenantId}-${idx}`}>
                   <TableCell className="text-xs font-medium">{probe.testName}</TableCell>
                   <TableCell className="font-mono text-xs text-gray-500">{probe.sourceTenantId}</TableCell>
                   <TableCell className="font-mono text-xs text-rose-600">{probe.targetTenantId}</TableCell>
@@ -243,9 +314,22 @@ export default function TenantSecurityDashboard() {
                   </TableCell>
                 </TableRow>
               ))}
+              {probes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    No isolation probes are available.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
+        <PaginationControls
+          label="probes"
+          currentPage={probePage}
+          onPageChange={setProbePage}
+          totalItems={probes.length}
+        />
       </Card>
     </div>
   );

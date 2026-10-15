@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { DatePickerWithRange } from '@/components/ui/date-range-picker'
 import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
+import { AlertCircle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { DateRange } from 'react-day-picker'
 
@@ -88,6 +89,7 @@ export default function BonusesPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
+      setError(null)
 
       const params = new URLSearchParams()
       if (dateRange?.from) params.set('startDate', dateRange.from.toISOString())
@@ -162,6 +164,15 @@ export default function BonusesPage() {
     } catch (err) {
       console.error('Error fetching bonus data:', err)
       setError(err instanceof Error ? err.message : 'An error occurred')
+      setBonusData([])
+      setMetrics({
+        totalBonusesIssued: 0,
+        totalBonusAmount: 0,
+        totalFreespinsIssued: 0,
+        totalFreespinsWinAmount: 0,
+        activeWageringAmount: 0,
+        completionRate: 0,
+      })
     } finally {
       setLoading(false)
     }
@@ -170,6 +181,17 @@ export default function BonusesPage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  const filteredBonusData = bonusData.filter((item) => {
+    if (!searchQuery.trim()) return true
+    const q = searchQuery.toLowerCase()
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.account_id.toLowerCase().includes(q) ||
+      item.status.toLowerCase().includes(q) ||
+      item.type.toLowerCase().includes(q)
+    )
+  })
 
   const bonusColumns = [
     {
@@ -213,7 +235,7 @@ export default function BonusesPage() {
       cell: ({ row }: any) => {
         const item = row.original as BonusData
         if (item.type === 'bonus') {
-          return formatCurrency(item.amount_cents)
+          return formatCurrency(item.amount_cents / 100)
         } else {
           return `${item.spins_count} spins`
         }
@@ -225,9 +247,9 @@ export default function BonusesPage() {
       cell: ({ row }: any) => {
         const item = row.original as BonusData
         if (item.type === 'bonus') {
-          return formatCurrency(item.amount_wager_cents)
+          return formatCurrency(item.amount_wager_cents / 100)
         } else {
-          return formatCurrency(item.amount_cents)
+          return formatCurrency(item.amount_cents / 100)
         }
       }
     },
@@ -248,6 +270,12 @@ export default function BonusesPage() {
 
   return (
     <div className="container mx-auto py-6">
+      {error && (
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
+          <AlertCircle className="h-4 w-4" />
+          <p>Bonus analytics could not be loaded: {error}</p>
+        </div>
+      )}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Bonuses</h1>
@@ -276,7 +304,7 @@ export default function BonusesPage() {
                   <CardTitle className="text-sm font-medium">Total Bonus Amount</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(metrics.totalBonusAmount)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(metrics.totalBonusAmount / 100)}</div>
                 </CardContent>
               </Card>
 
@@ -294,7 +322,7 @@ export default function BonusesPage() {
                   <CardTitle className="text-sm font-medium">Free Spins Win Amount</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(metrics.totalFreespinsWinAmount)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(metrics.totalFreespinsWinAmount / 100)}</div>
                 </CardContent>
               </Card>
 
@@ -303,7 +331,7 @@ export default function BonusesPage() {
                   <CardTitle className="text-sm font-medium">Active Wagering</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(metrics.activeWageringAmount)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(metrics.activeWageringAmount / 100)}</div>
                 </CardContent>
               </Card>
 
@@ -333,17 +361,15 @@ export default function BonusesPage() {
               <CardContent className="p-0">
                 <DataTable
                   columns={bonusColumns}
-                  data={bonusData.filter((item) => {
-                    if (!searchQuery.trim()) return true
-                    const q = searchQuery.toLowerCase()
-                    return (
-                      item.title.toLowerCase().includes(q) ||
-                      item.account_id.toLowerCase().includes(q) ||
-                      item.status.toLowerCase().includes(q) ||
-                      item.type.toLowerCase().includes(q)
-                    )
-                  })}
+                  data={filteredBonusData}
                 />
+                {filteredBonusData.length === 0 && (
+                  <p className="py-8 text-center text-muted-foreground">
+                    {bonusData.length === 0
+                      ? 'No bonus or free-spin records are available for this date range.'
+                      : 'No bonus records match this search.'}
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

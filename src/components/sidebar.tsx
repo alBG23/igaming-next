@@ -32,7 +32,7 @@ const navigationItems = [
   { icon: ShieldCheck, label: "Data Accuracy", href: "/data-accuracy" },
   { icon: Users, label: "Players", href: "/players" },
   { icon: BarChart2, label: "Acquisition", href: "/acquisition" },
-  { icon: LineChart, label: "Cohort Analysis", href: "/cohort-analysis" },
+  { icon: LineChart, label: "Cohort Analysis", href: "/cohorts" },
   { icon: CreditCard, label: "Payments", href: "/payments" },
   { icon: Gamepad, label: "Casino Games", href: "/casino-games" },
   { icon: Gift, label: "Bonuses", href: "/bonuses" },
@@ -75,6 +75,7 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                suppressHydrationWarning
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
                   sidebarOpen ? "justify-start" : "justify-center"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -166,12 +166,97 @@ export default function PlayersPage() {
   const [importError, setImportError] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch real players from PostgreSQL database
-  const fetchPlayersFromDb = async () => {
+  // Load from database on mount, fallback to localStorage
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchPlayersFromDb()
+      .then((fetched) => {
+        if (!fetched && !controller.signal.aborted) {
+          try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setPlayers(parsed);
+              }
+            }
+          } catch {
+            // Fallback to default players
+          }
+        }
+        if (!controller.signal.aborted) {
+          setIsLoaded(true);
+        }
+      })
+    return () => controller.abort()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save to localStorage when players list changes
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  }, [players, isLoaded]);
+
+  // Debounce timer ref — prevents API hammering on every keystroke
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
+  const DEBOUNCE_MS = 300 // 300ms debounce for search
+
+  // Pagination state
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+
+  // Flash feedback auto-clear
+  useEffect(() => {
+    if (feedbackMessage) {
+      const timer = setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [feedbackMessage]);
+
+  // Debounce search: only trigger API after 300ms of no keystrokes
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setPage(1); // reset to first page on search change
+    }, DEBOUNCE_MS);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery]);
+
+  // AbortController for cancelling in-flight fetches on unmount/dep change
+  const fetchCancelRef = useRef<AbortController | null>(null);
+
+  // Fetch real players from PostgreSQL database with pagination & timeout
+  const fetchPlayersFromDb = useCallback(async () => {
+    // Cancel any in-flight request
+    if (fetchCancelRef.current) fetchCancelRef.current.abort();
+    const controller = new AbortController()
+    fetchCancelRef.current = controller
+
     setIsRefreshing(true);
     try {
-      const res = await fetch('/api/players');
-      const json = await res.json();
+      const fp = page
+      const fs = debouncedSearchQuery
+      const params = new URLSearchParams()
+      params.set('page', String(fp))
+      params.set('limit', '50') // default 50 per page
+      if (fs) params.set('search', fs)
+
+      const res = await fetch(`/api/players?${params.toString()}`, {
+        signal: controller.signal,
+      })
+      const json = await res.json()
       if (json.success && Array.isArray(json.data) && json.data.length > 0) {
         const formatted: Player[] = json.data.map((item: any) => ({
           id: Number(item.id),
@@ -187,56 +272,30 @@ export default function PlayersPage() {
         setPlayers(formatted);
         setDataSource('postgresql');
         localStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
+
+        // Update pagination UI
+        if (json.pagination) {
+          setTotalPages(Math.max(1, Math.ceil(json.pagination.total / 50)))
+          setTotalCount(json.pagination.total)
+        }
         return true;
       }
-    } catch (err) {
-      console.warn('Failed to fetch players from PostgreSQL API:', err);
+      // No data — still mark as fetched (show empty)
+      if (json.pagination) {
+        setTotalPages(Math.max(1, Math.ceil(json.pagination.total / 50)))
+        setTotalCount(json.pagination.total)
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || err?.name === 'TimeoutError') {
+        console.warn('Fetch cancelled or timed out — safe to ignore')
+      } else {
+        console.warn('Failed to fetch players from PostgreSQL API:', err);
+      }
     } finally {
       setIsRefreshing(false);
     }
     return false;
-  };
-
-  // Load from database on mount, fallback to localStorage
-  useEffect(() => {
-    fetchPlayersFromDb().then((fetched) => {
-      if (!fetched) {
-        try {
-          const stored = localStorage.getItem(STORAGE_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setPlayers(parsed);
-            }
-          }
-        } catch {
-          // Fallback to default players
-        }
-      }
-      setIsLoaded(true);
-    });
-  }, []);
-
-  // Save to localStorage when players list changes
-  useEffect(() => {
-    if (isLoaded) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
-      } catch {
-        // Ignore storage errors
-      }
-    }
-  }, [players, isLoaded]);
-
-  // Flash feedback auto-clear
-  useEffect(() => {
-    if (feedbackMessage) {
-      const timer = setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [feedbackMessage]);
+  }, [page, debouncedSearchQuery]);
 
   const showNotification = (type: 'success' | 'error', text: string) => {
     setFeedbackMessage({ type, text });
@@ -863,6 +922,33 @@ export default function PlayersPage() {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination Controls */}
+          {totalCount > 50 && (
+            <div className="flex items-center justify-between border-t mt-4 pt-4">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages} ({totalCount} total)
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || isRefreshing}
+                  onClick={() => { setPage(p => p - 1); }}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages || isRefreshing}
+                  onClick={() => { setPage(p => p + 1); }}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

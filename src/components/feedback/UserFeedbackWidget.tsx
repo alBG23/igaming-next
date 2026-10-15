@@ -334,3 +334,5 @@ export function UserFeedbackWidget() {
     </>
   );
 }
+
+export default UserFeedbackWidget;

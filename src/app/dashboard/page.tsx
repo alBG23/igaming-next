@@ -176,7 +176,7 @@ export default function DashboardPage() {
               .gte('created_at', adjustedStart.toISOString())
               .lte('created_at', adjustedEnd.toISOString())
               .order('created_at', { ascending: false })
-              .limit(5000)
+              .limit(1000)
               .abortSignal(abortController.signal)
             return { data: res.data || [], error: res.error }
           } catch (err: any) {
@@ -194,7 +194,7 @@ export default function DashboardPage() {
               .gte('created_at', adjustedStart.toISOString())
               .lte('created_at', adjustedEnd.toISOString())
               .order('created_at', { ascending: false })
-              .limit(5000)
+              .limit(1000)
               .abortSignal(abortController.signal)
             return { data: res.data || [], error: res.error }
           } catch (err: any) {

@@ -3,11 +3,28 @@ import { getDbPool } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
+const QUERY_TIMEOUT_MS = 5000
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_resolve, reject) => {
+      setTimeout(() => reject(new Error(`[${label}] Query timed out after ${ms}ms`)), ms)
+    })
+  ])
+}
+
+/** Highload-safe GET: paginated, timeout-protected, capped result set */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const status = searchParams.get('status') || 'All'
+
+    // Page-based pagination: default 50/page, max 100/page
+    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
+    const limitPerPage = Math.min(Math.max(parseInt(searchParams.get('limit') || '50'), 1), 100)
+    const offset = (page - 1) * limitPerPage
 
     const pool = getDbPool()
 
@@ -34,6 +51,7 @@ export async function GET(request: Request) {
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
 
+    // Use LIMIT + OFFSET for pagination instead of single LIMIT 200
     const sql = `
       SELECT 
         u.id,
@@ -63,18 +81,47 @@ export async function GET(request: Request) {
       ) p ON p.user_id = u.id
       ${whereClause}
       ORDER BY u.id DESC
-      LIMIT 200;
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2};
     `
 
-    const res = await pool.query(sql, queryParams)
+    const paginatedParams = [...queryParams, limitPerPage, offset]
+
+    // Timeout-guarded queries to prevent connection pool exhaustion
+    const [res, countRes] = await Promise.all([
+      withTimeout(pool.query(sql, paginatedParams), QUERY_TIMEOUT_MS, 'players-list'),
+      withTimeout(pool.query(`
+        SELECT COUNT(*)::int FROM users_view u
+        LEFT JOIN (
+          SELECT DISTINCT ON (user_id) user_id FROM accounts_view ORDER BY user_id, id DESC NULLS LAST
+        ) a ON a.user_id = u.id
+        LEFT JOIN (
+          SELECT DISTINCT ON (user_id) user_id FROM profiles_view ORDER BY user_id, id DESC NULLS LAST
+        ) p ON p.user_id = u.id
+        ${whereClause}
+      `, queryParams), QUERY_TIMEOUT_MS, 'players-count')
+    ])
+
+    const total = countRes.rows[0].count
 
     return NextResponse.json({
       success: true,
       data: res.rows,
-      total: res.rowCount,
+      pagination: {
+        page,
+        limit: limitPerPage,
+        total,
+        hasMore: offset + (res.rowCount || 0) < total
+      },
       source: 'postgresql'
     })
   } catch (err: any) {
+    if (err.message?.includes('timed out')) {
+      console.warn('[GET /api/players Timeout]: Query exceeded 5s limit')
+      return NextResponse.json(
+        { success: false, error: 'Request timed out. Try a narrower filter.', data: [] },
+        { status: 504 }
+      )
+    }
     console.warn('[GET /api/players Warning]:', err.message)
     return NextResponse.json({
       success: false,

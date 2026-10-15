@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,20 +13,24 @@ export default function KnowledgeCurator() {
   const [proposals, setProposals] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const { toast } = useToast();
 
   const loadProposals = async () => {
     setIsLoading(true);
+    setLoadError('');
     try {
       const response = await fetchAuthApi('/api/v1/curator/proposals');
       const data = await response.json();
-      setProposals(data.proposals || []);
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || `Request failed (${response.status}).`);
+      }
+      if (!Array.isArray(data.proposals)) {
+        throw new Error('The curator service returned an invalid proposals response.');
+      }
+      setProposals(data.proposals);
     } catch (error) {
-      toast({
-        title: "Error loading proposals",
-        description: error.message,
-        variant: "destructive"
-      });
+      setLoadError(error instanceof Error ? error.message : 'Unable to load proposals.');
     } finally {
       setIsLoading(false);
     }
@@ -40,15 +46,18 @@ export default function KnowledgeCurator() {
     try {
       const response = await fetchAuthApi('/api/v1/curator/generate?days=7', { method: 'POST' });
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || `Request failed (${response.status}).`);
+      }
       toast({
         title: "Proposals Generated",
         description: `Successfully generated ${data.generated} new memory proposals.`
       });
-      loadProposals();
+      await loadProposals();
     } catch (error) {
       toast({
         title: "Generation failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unable to generate proposals.',
         variant: "destructive"
       });
     } finally {
@@ -58,25 +67,41 @@ export default function KnowledgeCurator() {
 
   const handleApprove = async (id) => {
     try {
-      await fetchAuthApi(`/api/v1/curator/proposals/${id}/approve`, { method: 'POST' });
+      const response = await fetchAuthApi(`/api/v1/curator/proposals/${id}/approve`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || `Request failed (${response.status}).`);
+      }
       toast({ title: "Approved", description: "Rule merged into shared AI memory." });
-      loadProposals();
+      await loadProposals();
     } catch (error) {
-      toast({ title: "Approval failed", description: error.message, variant: "destructive" });
+      toast({
+        title: "Approval failed",
+        description: error instanceof Error ? error.message : 'Unable to approve proposal.',
+        variant: "destructive",
+      });
     }
   };
 
   const handleReject = async (id) => {
     try {
-      await fetchAuthApi(`/api/v1/curator/proposals/${id}/reject`, { 
+      const response = await fetchAuthApi(`/api/v1/curator/proposals/${id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: "Rejected by human curator" })
       });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || `Request failed (${response.status}).`);
+      }
       toast({ title: "Rejected", description: "Proposal discarded." });
-      loadProposals();
+      await loadProposals();
     } catch (error) {
-      toast({ title: "Rejection failed", description: error.message, variant: "destructive" });
+      toast({
+        title: "Rejection failed",
+        description: error instanceof Error ? error.message : 'Unable to reject proposal.',
+        variant: "destructive",
+      });
     }
   };
 
@@ -105,6 +130,13 @@ export default function KnowledgeCurator() {
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center p-8"><RefreshCw className="h-8 w-8 animate-spin text-gray-400" /></div>
+          ) : loadError ? (
+            <div role="alert" className="flex flex-col items-center gap-3 py-10 text-center text-red-600">
+              <AlertTriangle className="h-10 w-10" />
+              <p>Unable to load pending proposals.</p>
+              <p className="text-sm text-gray-600">{loadError}</p>
+              <Button variant="outline" onClick={loadProposals}>Retry loading proposals</Button>
+            </div>
           ) : proposals.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Check className="mx-auto h-12 w-12 text-green-300 mb-3" />

@@ -13,6 +13,7 @@
 # next.js
 /.next/
 /.next_check/
+/.next_hydration_audit/
 /out/
 
 # production
