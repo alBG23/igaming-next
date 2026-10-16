@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { formatDate, formatCurrency, formatNumber } from '@/lib/utils';
+import { formatDate, formatCurrency, formatCompactCurrency, formatNumber } from '@/lib/utils';
 import { LineChart, BarChart } from '@tremor/react';
 import { 
   ThumbsUp, 
@@ -91,6 +91,29 @@ Try queries like:
 - How many FTDs did we have last week?
 - Show me deposits vs cashouts for last month`
   }
+};
+
+const ChartCustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="rounded-lg border bg-background/95 backdrop-blur-xs p-3 shadow-lg text-xs min-w-[150px] border-border/80">
+      <p className="font-semibold text-foreground mb-1.5">{label}</p>
+      {payload.map((cat: any, idx: number) => (
+        <div key={idx} className="flex items-center justify-between gap-3 py-0.5">
+          <div className="flex items-center gap-1.5">
+            <span
+              className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+              style={{ backgroundColor: cat.color || '#3b82f6' }}
+            />
+            <span className="text-muted-foreground font-medium">{cat.dataKey || cat.name}:</span>
+          </div>
+          <span className="font-semibold text-foreground font-mono">
+            {formatCurrency(cat.value)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 export default function ChatPage() {
@@ -430,8 +453,12 @@ export default function ChatPage() {
                         index="name"
                         categories={latestViz.data.categories || ["NGR", "value"]}
                         colors={["blue"]}
-                        valueFormatter={(v: number) => formatCurrency(v)}
-                        yAxisWidth={64}
+                        valueFormatter={(v: number) => formatCompactCurrency(v)}
+                        customTooltip={ChartCustomTooltip}
+                        yAxisWidth={76}
+                        intervalType="preserveStartEnd"
+                        tickGap={0}
+                        showAnimation={true}
                         className="h-64"
                       />
                     </div>
@@ -445,8 +472,13 @@ export default function ChatPage() {
                         index="name"
                         categories={latestViz.data.categories || ["GGR", "value"]}
                         colors={["blue"]}
-                        valueFormatter={(v: number) => formatCurrency(v)}
-                        yAxisWidth={64}
+                        valueFormatter={(v: number) => formatCompactCurrency(v)}
+                        customTooltip={ChartCustomTooltip}
+                        curveType="monotone"
+                        yAxisWidth={76}
+                        intervalType="preserveStartEnd"
+                        tickGap={0}
+                        showAnimation={true}
                         className="h-64"
                       />
                     </div>

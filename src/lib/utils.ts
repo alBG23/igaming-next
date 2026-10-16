@@ -15,6 +15,23 @@ export function formatCurrency(amount: number, currency: string = 'EUR'): string
   }).format(Number.isFinite(amount) ? amount : 0)
 }
 
+export function formatCompactCurrency(amount: number, currency: string = 'EUR'): string {
+  const safeCurrency = (typeof currency === 'string' && /^[A-Za-z]{3}$/.test(currency)) ? currency : 'EUR';
+  const symbol = safeCurrency === 'EUR' ? '€' : safeCurrency === 'USD' ? '$' : `${safeCurrency} `;
+  const val = Number.isFinite(amount) ? amount : 0;
+  const abs = Math.abs(val);
+  const sign = val < 0 ? '-' : '';
+  if (abs >= 1_000_000) {
+    const formatted = (abs / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 1 });
+    return `${sign}${symbol}${formatted}M`;
+  }
+  if (abs >= 1_000) {
+    const formatted = (abs / 1_000).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    return `${sign}${symbol}${formatted}k`;
+  }
+  return `${sign}${symbol}${abs.toLocaleString('en-US')}`;
+}
+
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat('en-US').format(num)
 }
