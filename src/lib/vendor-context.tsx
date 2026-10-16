@@ -54,11 +54,17 @@ export const VENDORS: Record<string, Vendor> = {
     name: 'EveryMatrix',
     shortCode: 'EM',
     url: 'https://everymatrix.com/',
-    status: 'roadmap',
-    badge: 'Roadmap',
-    description: 'CasinoEngine & GamMatrix Platform Architecture',
-    replicaName: 'EveryMatrix GamMatrix Datalake',
-    features: ['CasinoEngine API', 'MoneyMatrix PSP'],
+    status: 'active',
+    badge: 'Connected',
+    description: 'EveryMatrix GamMatrix PAM, CasinoEngine, MoneyMatrix & PartnerMatrix Replica',
+    replicaName: 'EveryMatrix GamMatrix & CasinoEngine Replica',
+    features: [
+      'CasinoEngine & SlotMatrix Aggregator (a8r_games_view, casino_games_view)',
+      'GamMatrix PAM Accounts & Wallets (users_view, accounts_view)',
+      'BonusEngine Campaigns & FreeSpins (bonus_issues_view)',
+      'MoneyMatrix PSP Orchestration & Settlement (payments_view)',
+      'PartnerMatrix Affiliate & Agent Attribution (traffic_reports, income_reports)'
+    ],
   },
 };
 

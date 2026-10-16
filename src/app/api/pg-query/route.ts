@@ -24,6 +24,7 @@ interface QueryRequest {
   offset?: number
   countOnly?: boolean
   sql?: string
+  query?: string
   params?: any[]
 }
 
@@ -33,9 +34,10 @@ export async function POST(request: Request) {
     const pool = getDbPool()
 
     // 1. Direct SQL execution if provided
-    if (body.sql) {
+    const rawSql = body.sql || body.query
+    if (rawSql) {
       try {
-        const result = await pool.query(body.sql, body.params || [])
+        const result = await pool.query(rawSql, body.params || [])
         return NextResponse.json({
           data: result.rows,
           count: result.rowCount,
@@ -173,11 +175,12 @@ export async function POST(request: Request) {
       orderString = `ORDER BY "${body.order.column}" ${dir}`
     }
 
-    // Pagination
-    let limitOffsetString = ''
-    if (body.limit !== undefined && Number.isInteger(body.limit)) {
-      limitOffsetString += ` LIMIT ${body.limit}`
-    }
+    // Pagination (default to 1000 rows max when unspecified to prevent unbounded 1M-row scans)
+    const safeLimit =
+      body.limit !== undefined && Number.isInteger(body.limit)
+        ? Math.min(Math.max(body.limit, 1), 10000)
+        : 1000
+    let limitOffsetString = ` LIMIT ${safeLimit}`
     if (body.offset !== undefined && Number.isInteger(body.offset)) {
       limitOffsetString += ` OFFSET ${body.offset}`
     }

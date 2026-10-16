@@ -57,7 +57,20 @@ type Message = {
 };
 
 function getQuickPromptsForVendor(vendorName: string) {
-  const isSoft2Bet = vendorName.toLowerCase() === 'soft2bet';
+  const norm = vendorName.toLowerCase();
+  const isEveryMatrix = norm === 'everymatrix';
+  const isSoft2Bet = norm === 'soft2bet';
+  const schemaLabel = isEveryMatrix
+    ? 'EveryMatrix GamMatrix Schema'
+    : isSoft2Bet
+      ? 'Soft2Bet MEGA & PAM Schema'
+      : 'SoftSwiss Replica Schema';
+  const schemaQuery = isEveryMatrix
+    ? 'Show EveryMatrix GamMatrix PAM and CasinoEngine schema architecture'
+    : isSoft2Bet
+      ? 'Show Soft2Bet multi-brand MEGA gamification and PAM schema architecture'
+      : 'Show SoftSwiss datalake replica schema architecture';
+
   return [
     { label: 'Top 3 Affiliates by NGR', query: 'Show me top 3 affiliates by NGR for last 3 months' },
     { label: 'GGR Trend', query: 'What is the GGR trend for last month?' },
@@ -65,10 +78,8 @@ function getQuickPromptsForVendor(vendorName: string) {
     { label: 'Crypto Divisors (1e8 / 1e9)', query: 'Explain crypto currency subunit divisors' },
     { label: 'SPLIT Payment Basis', query: `What is ${vendorName} SPLIT payment day basis?` },
     {
-      label: isSoft2Bet ? 'Soft2Bet MEGA & PAM Schema' : 'SoftSwiss Replica Schema',
-      query: isSoft2Bet
-        ? 'Show Soft2Bet multi-brand MEGA gamification and PAM schema architecture'
-        : 'Show SoftSwiss datalake replica schema architecture',
+      label: schemaLabel,
+      query: schemaQuery,
     },
   ];
 }

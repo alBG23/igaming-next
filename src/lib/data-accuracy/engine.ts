@@ -136,8 +136,13 @@ function generateComparisonDataset(
 }> {
   const dataset = [];
   const now = new Date();
+  const normVendor = vendorId.toLowerCase();
   const replicaSoT: SourceOfTruthType =
-    vendorId.toLowerCase() === 'soft2bet' ? 'soft2bet_replica' : 'softswiss_replica';
+    normVendor === 'everymatrix'
+      ? 'everymatrix_replica'
+      : normVendor === 'soft2bet'
+        ? 'soft2bet_replica'
+        : 'softswiss_replica';
 
   for (let i = 0; i < daysBack; i++) {
     const d = new Date(now);

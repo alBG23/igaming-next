@@ -60,11 +60,22 @@ export default function Integrations() {
   const handleSoftswissSubmit = (e) => {
     e.preventDefault();
     
-    const storageKey = selectedPlatform === 'soft2bet' ? 'soft2betCredentials' : 'softswissCredentials';
+    const storageKey =
+      selectedPlatform === 'everymatrix'
+        ? 'everymatrixCredentials'
+        : selectedPlatform === 'soft2bet'
+          ? 'soft2betCredentials'
+          : 'softswissCredentials';
     localStorage.setItem(storageKey, JSON.stringify(softswissCredentials));
     
+    const prefix =
+      selectedPlatform === 'everymatrix'
+        ? 'em_'
+        : selectedPlatform === 'soft2bet'
+          ? 's2b_'
+          : 'sw_';
     const newIntegration = {
-      id: (selectedPlatform === 'soft2bet' ? 's2b_' : 'sw_') + Date.now(),
+      id: prefix + Date.now(),
       platform_name: selectedPlatform,
       brand: 'Your Casino',
       sync_status: 'active',
@@ -97,6 +108,13 @@ export default function Integrations() {
     }
   };
 
+  const platformDisplayName =
+    selectedPlatform === 'everymatrix'
+      ? 'EveryMatrix'
+      : selectedPlatform === 'soft2bet'
+        ? 'Soft2Bet'
+        : 'SoftSwiss';
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -116,10 +134,10 @@ export default function Integrations() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ServerIcon className="h-5 w-5 text-indigo-600" />
-                Connect to {selectedPlatform === 'soft2bet' ? 'Soft2Bet' : 'SoftSwiss'} Database Replica
+                Connect to {platformDisplayName} Database Replica
               </CardTitle>
               <CardDescription>
-                Enter your {selectedPlatform === 'soft2bet' ? 'Soft2Bet' : 'SoftSwiss'} read-only replica database credentials
+                Enter your {platformDisplayName} read-only replica database credentials
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -134,6 +152,7 @@ export default function Integrations() {
                       <SelectContent>
                         <SelectItem value="softswiss">SoftSwiss (Casino Platform & Aggregator)</SelectItem>
                         <SelectItem value="soft2bet">Soft2Bet (Multi-Brand PAM & MEGA Engine)</SelectItem>
+                        <SelectItem value="everymatrix">EveryMatrix (GamMatrix PAM & CasinoEngine)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -142,7 +161,13 @@ export default function Integrations() {
                     <Label htmlFor="host">Host</Label>
                     <Input 
                       id="host" 
-                      placeholder={selectedPlatform === 'soft2bet' ? "e.g. replica.soft2bet.com" : "e.g. replica.softswiss.com"} 
+                      placeholder={
+                        selectedPlatform === 'everymatrix'
+                          ? "e.g. replica.everymatrix.com"
+                          : selectedPlatform === 'soft2bet'
+                            ? "e.g. replica.soft2bet.com"
+                            : "e.g. replica.softswiss.com"
+                      } 
                       value={softswissCredentials.host}
                       onChange={(e) => setSoftswissCredentials({...softswissCredentials, host: e.target.value})}
                       required
