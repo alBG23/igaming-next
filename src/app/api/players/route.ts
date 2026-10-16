@@ -3,7 +3,7 @@ import { getDbPool } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-const QUERY_TIMEOUT_MS = 5000
+const QUERY_TIMEOUT_MS = 10000
 const DEFAULT_PAGE_SIZE = 50
 const MAX_PAGE_SIZE = 100
 
@@ -80,6 +80,25 @@ export async function GET(request: Request) {
 
   try {
     const pool = getDbPool()
+    const countSql = search
+      ? `
+        SELECT COUNT(*)::int AS total
+        FROM users_view u
+        LEFT JOIN LATERAL (
+          SELECT first_name, last_name, full_name, country
+          FROM profiles_view
+          WHERE user_id = u.id
+          ORDER BY id DESC NULLS LAST
+          LIMIT 1
+        ) p ON true
+        ${whereClause}
+      `
+      : `
+        SELECT COUNT(*)::int AS total
+        FROM users_view u
+        ${whereClause}
+      `
+
     const [playersResult, countResult, summaryResult, balancesResult] = await Promise.all([
       withTimeout(pool.query(`
         SELECT
@@ -124,18 +143,7 @@ export async function GET(request: Request) {
         ORDER BY u.id DESC
         LIMIT ${limitParameter} OFFSET ${offsetParameter}
       `, [...parameters, limit, offset]), QUERY_TIMEOUT_MS),
-      withTimeout(pool.query(`
-        SELECT COUNT(*)::int AS total
-        FROM users_view u
-        LEFT JOIN LATERAL (
-          SELECT first_name, last_name, full_name, country
-          FROM profiles_view
-          WHERE user_id = u.id
-          ORDER BY id DESC NULLS LAST
-          LIMIT 1
-        ) p ON true
-        ${whereClause}
-      `, parameters), QUERY_TIMEOUT_MS),
+      withTimeout(pool.query(countSql, parameters), QUERY_TIMEOUT_MS),
       withTimeout(pool.query(`
         SELECT
           COUNT(*)::int AS total_players,

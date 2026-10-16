@@ -142,6 +142,7 @@ export default function ChatPage() {
   const [kbSearchQuery, setKbSearchQuery] = useState('');
   const [kbCategoryFilter, setKbCategoryFilter] = useState<string>('all');
   const [expandedDocId, setExpandedDocId] = useState<string | null>(null);
+  const [knowledgeQueryStatus, setKnowledgeQueryStatus] = useState<{ loading: boolean; result?: HermesAnalysisResult } | null>(null);
 
   useEffect(() => {
     setMessages((prev) => {
@@ -154,6 +155,26 @@ export default function ChatPage() {
 
   const handleFeedback = (index: number, type: 'thumbs_up' | 'thumbs_down') => {
     setFeedbackState(prev => ({ ...prev, [index]: type }));
+  };
+
+  /**
+   * Ask Hermes from a Knowledge card: sends the doc-title query,
+   * switches to the Visualization tab, shows loading state, and displays result.
+   */
+  const handleAskHermesKnowledge = async (doc: KnowledgeDocument) => {
+    setActiveTab('visualization');
+    setKnowledgeQueryStatus({ loading: true });
+
+    try {
+      const result = await executeHermesLangChainQuery(
+        `Explain ${doc.title} in detail`,
+        currentVendor.id
+      );
+      setKnowledgeQueryStatus({ loading: false, result });
+    } catch (error) {
+      console.error('Ask Hermes (knowledge) error:', error);
+      setKnowledgeQueryStatus({ loading: false });
+    }
   };
 
   const handleSendQuery = async (queryText?: string) => {
@@ -444,7 +465,160 @@ export default function ChatPage() {
         {/* Tab 1: Live Visualization */}
         {activeTab === 'visualization' && (
           <ScrollArea className="flex-1 pr-3 max-h-[calc(100vh-250px)]">
-            {latestViz ? (
+            {knowledgeQueryStatus?.loading && (
+              <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
+                <Sparkles className="h-10 w-10 mb-3 text-indigo-500 animate-spin" />
+                <p className="text-sm font-medium">Hermes is analyzing knowledge...</p>
+                <p className="text-xs mt-1">Retrieving context and synthesizing analysis</p>
+              </div>
+            )}
+            {knowledgeQueryStatus?.result && !knowledgeQueryStatus.loading && (() => {
+            const rq = knowledgeQueryStatus.result;
+            return (
+              <div className="space-y-4">
+                <Card className="p-4 border border-primary/20 bg-primary/5">
+                  {rq.visualization?.title && (
+                    <h3 className="text-lg font-bold mb-1 tracking-tight text-primary">
+                      {rq.visualization.title}
+                    </h3>
+                  )}
+                  {rq.visualization?.description && (
+                    <p className="text-xs text-muted-foreground mb-4">
+                      {rq.visualization.description}
+                    </p>
+                  )}
+
+                  {rq.visualization?.metrics && rq.visualization.metrics.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                      {rq.visualization.metrics.map((metric, idx) => (
+                        <div key={idx} className="border rounded-lg p-3 bg-muted/20 shadow-2xs">
+                          <p className="text-xs text-muted-foreground font-medium">{metric.name}</p>
+                          <p className="text-lg font-bold text-foreground mt-0.5">{metric.value}</p>
+                          {metric.change && (
+                            <p className="text-[11px] font-medium text-emerald-600 mt-0.5">
+                              {metric.change}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Charts from knowledge query */}
+                  {rq.visualization?.type === 'bar' && rq.visualization.data?.data && (
+                    <div className="pt-2">
+                      <BarChart
+                        data={rq.visualization.data.data}
+                        index="name"
+                        categories={rq.visualization.data.categories || ["NGR", "value"]}
+                        colors={["blue"]}
+                        valueFormatter={(v: number) => formatCompactCurrency(v)}
+                        customTooltip={ChartCustomTooltip}
+                        yAxisWidth={76}
+                        intervalType="preserveStartEnd"
+                        tickGap={0}
+                        showAnimation={true}
+                        className="h-64"
+                      />
+                    </div>
+                  )}
+
+                  {rq.visualization?.type === 'line' && rq.visualization.data?.data && (
+                    <div className="pt-2">
+                      <LineChart
+                        data={rq.visualization.data.data}
+                        index="name"
+                        categories={rq.visualization.data.categories || ["GGR", "value"]}
+                        colors={["blue"]}
+                        valueFormatter={(v: number) => formatCompactCurrency(v)}
+                        customTooltip={ChartCustomTooltip}
+                        curveType="monotone"
+                        yAxisWidth={76}
+                        intervalType="preserveStartEnd"
+                        tickGap={0}
+                        showAnimation={true}
+                        className="h-64"
+                      />
+                    </div>
+                  )}
+
+                  {rq.visualization?.type === 'table' && rq.visualization.data?.headers && (
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-muted/50 border-b">
+                          <tr>
+                            {rq.visualization.data.headers.map((h: string, idx: number) => (
+                              <th key={idx} className="px-3.5 py-2.5 font-semibold text-muted-foreground">
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {rq.visualization.data.rows?.map((row: any[], rIdx: number) => (
+                            <tr key={rIdx} className="hover:bg-muted/30">
+                              {row.map((cell, cIdx) => (
+                                <td key={cIdx} className="px-3.5 py-2 font-mono">
+                                  {cell}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+
+                {/* Knowledge reasoning steps */}
+                {rq.reasoningSteps && rq.reasoningSteps.length > 0 && (
+                  <Card className="p-3.5 border-indigo-200/50 bg-indigo-50/20">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground mb-2">
+                      <BrainCircuit className="h-3.5 w-3.5 text-indigo-500" />
+                      <span>Reasoning Chain:</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {rq.reasoningSteps.map((step, sIdx) => {
+                        const stepPrefix = step.split(':')[0] || 'Step';
+                        const detail = step.split(':')[1]?.trim() || '';
+                        return (
+                          <div key={sIdx} className="flex items-start gap-2 text-[11px]">
+                            <span className="w-4 h-4 rounded-full bg-primary/10 text-primary font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">
+                              {sIdx + 1}
+                            </span>
+                            <span className="text-foreground/80">
+                              <strong className="text-primary">{stepPrefix}:</strong> {detail}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                )}
+
+                {/* Matched knowledge sources */}
+                {rq.matchedKnowledge && rq.matchedKnowledge.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap text-[10px]">
+                    <span className="text-muted-foreground font-medium">Sources:</span>
+                    {rq.matchedKnowledge.map((doc) => (
+                      <button
+                        key={doc.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('knowledge');
+                          setExpandedDocId(doc.id);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200 transition-colors"
+                      >
+                        {doc.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+            {!knowledgeQueryStatus && latestViz ? (
               <div className="space-y-4">
                 <Card className="p-4 border">
                   {latestViz.title && (
@@ -646,7 +820,39 @@ export default function ChatPage() {
                 </div>
               </div>
 
-              {/* Document Cards */}
+              {/* Knowledge Query Result Card */}
+              {knowledgeQueryStatus?.result && (
+                (() => {
+                  const rq = knowledgeQueryStatus.result!;
+                  return (
+                <Card className="p-3.5 border-primary/40 bg-primary/5 shadow-md">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    <h4 className="font-semibold text-xs text-primary">Hermes Analysis Result</h4>
+                    <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                      Ready
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-foreground/90 whitespace-pre-wrap">{rq.content}</p>
+                  {rq.visualization && (
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      📊 Visualization available — switch to <button onClick={() => setActiveTab('visualization')} className="underline text-primary hover:text-primary/80">Visuals</button> tab to view charts.
+                    </p>
+                  )}
+                </Card>
+                  );
+                })()
+              )}
+
+              {knowledgeQueryStatus?.loading && (
+                <Card className="p-3.5 border-primary/30 bg-primary/5 border-dashed animate-pulse">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Sparkles className="h-3.5 w-3.5 text-indigo-500 animate-spin" />
+                    <span>Hermes is analyzing knowledge for this topic...</span>
+                  </div>
+                </Card>
+              )}
+
               <div className="space-y-2.5">
                 {filteredKnowledgeDocs.map((doc) => {
                   const isExpanded = expandedDocId === doc.id;
@@ -698,12 +904,10 @@ export default function ChatPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-6 text-[11px] px-2.5 gap-1 bg-background"
-                          onClick={() => {
-                            setActiveTab('visualization');
-                            handleSendQuery(`Explain ${doc.title} in detail`);
-                          }}
+                          className="h-6 text-[11px] px-2.5 gap-1.5 bg-background border-primary/20 hover:border-primary/50 hover:bg-primary/5 text-primary/80 hover:text-primary"
+                          onClick={() => handleAskHermesKnowledge(doc)}
                         >
+                          <Sparkles className="h-3 w-3 text-amber-500" />
                           Ask Hermes
                           <ArrowRight className="h-3 w-3" />
                         </Button>

@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { supabase } from '@/lib/supabase'
 import { formatCurrency, formatNumber, formatPercentage } from '@/lib/utils'
+import { addDays, format } from 'date-fns'
 
 interface CommissionRow {
   key: string
@@ -33,6 +33,12 @@ export default function AffiliatesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notification, setNotification] = useState<string | null>(null)
+  const [affiliateSummary, setAffiliateSummary] = useState({
+    totalAffiliates: 0,
+    totalRevenueCents: 0,
+    totalConversions: 0,
+    formattedRevenue: '',
+  })
 
   const fetchAffiliateData = useCallback(async () => {
     setLoading(true)
@@ -40,70 +46,70 @@ export default function AffiliatesPage() {
 
     const end = new Date()
     const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000)
-    const from = start.toISOString().slice(0, 10)
-    const to = end.toISOString().slice(0, 10)
+    const startDateStr = format(start, 'yyyy-MM-dd')
+    const endDateStr = format(end, 'yyyy-MM-dd')
 
     try {
-      const [incomeResult, trafficResult] = await Promise.all([
-        supabase
-          .from('income_reports')
-          .select('partner_id, currency, partner_income')
-          .gte('date', from)
-          .lte('date', to),
-        supabase
-          .from('traffic_reports')
-          .select('foreign_partner_id, visits, clicks, registrations_count, deposits_count, ftd_count')
-          .gte('date', from)
-          .lte('date', to),
-      ])
+      const res = await fetch(
+        `/api/affiliates?startDate=${startDateStr}&endDate=${endDateStr}&limit=100`,
+      )
 
-      if (incomeResult.error) {
-        throw new Error(`Could not load affiliate income reports: ${incomeResult.error.message}`)
-      }
-      if (trafficResult.error) {
-        throw new Error(`Could not load affiliate traffic reports: ${trafficResult.error.message}`)
-      }
+      if (!res.ok) throw new Error(`Affiliate API returned ${res.status}`)
+      const json = await res.json()
 
-      const commissionTotals = new Map<string, CommissionRow>()
-      for (const report of incomeResult.data ?? []) {
-        const currency = (report.currency || 'Unknown').toUpperCase()
-        const partner = String(report.partner_id)
-        const key = `${partner}:${currency}`
-        const aggregate = commissionTotals.get(key) ?? {
-          key,
-          partner,
-          currency,
-          income: 0,
-          reports: 0,
+      if (json.success && json.data) {
+        const { incomeReports, trafficReports, topAffiliates, summary } = json.data
+
+        // Map income_reports to CommissionRow
+        const commissionTotals = new Map<string, CommissionRow>()
+        for (const report of incomeReports) {
+          const currency = 'EUR'
+          const partner = report.partner_name || `Partner #${report.partner_id}`
+          const key = `${partner}:${currency}`
+          const aggregate = commissionTotals.get(key) ?? {
+            key,
+            partner,
+            currency,
+            income: 0,
+            reports: 0,
+          }
+          aggregate.income += Number(report.revenue_cents) || 0
+          aggregate.reports += 1
+          commissionTotals.set(key, aggregate)
         }
-        aggregate.income += Number(report.partner_income) || 0
-        aggregate.reports += 1
-        commissionTotals.set(key, aggregate)
-      }
+        setCommissions(Array.from(commissionTotals.values()).sort((a, b) => b.income - a.income))
 
-      const trafficTotals = new Map<string, TrafficRow>()
-      for (const report of trafficResult.data ?? []) {
-        const source = report.foreign_partner_id === null
-          ? 'Unattributed'
-          : String(report.foreign_partner_id)
-        const aggregate = trafficTotals.get(source) ?? {
-          source,
-          visits: 0,
-          clicks: 0,
-          registrations: 0,
-          deposits: 0,
-          firstDeposits: 0,
+        // Map traffic_reports to TrafficRow
+        const trafficTotals = new Map<string, TrafficRow>()
+        for (const report of trafficReports) {
+          const source = report.partner_name || `Partner #${report.partner_id}`
+          const aggregate = trafficTotals.get(source) ?? {
+            source,
+            visits: 0,
+            clicks: 0,
+            registrations: 0,
+            deposits: 0,
+            firstDeposits: 0,
+          }
+          aggregate.visits += Number(report.clicks) || 0
+          aggregate.clicks += Number(report.clicks) || 0
+          aggregate.registrations += Number(report.registrations) || 0
+          aggregate.deposits += Number(report.ftds) || 0
+          aggregate.firstDeposits += Number(report.ftds) || 0
+          trafficTotals.set(source, aggregate)
         }
-        aggregate.visits += Number(report.visits) || 0
-        aggregate.clicks += Number(report.clicks) || 0
-        aggregate.registrations += Number(report.registrations_count) || 0
-        aggregate.deposits += Number(report.deposits_count) || 0
-        aggregate.firstDeposits += Number(report.ftd_count) || 0
-        trafficTotals.set(source, aggregate)
-      }
+        setTraffic(Array.from(trafficTotals.values()).sort((a, b) => b.visits - a.visits))
 
-      setCommissions(Array.from(commissionTotals.values()).sort((a, b) => b.income - a.income))
-      setTraffic(Array.from(trafficTotals.values()).sort((a, b) => b.visits - a.visits))
+        // Store summary data
+        setAffiliateSummary({
+          totalAffiliates: summary.totalAffiliates,
+          totalRevenueCents: summary.totalRevenueCents,
+          totalConversions: summary.totalConversions,
+          formattedRevenue: formatCurrency(summary.totalRevenueCents),
+        })
+      } else {
+        throw new Error(json.error || 'Failed to load affiliate data')
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to load affiliate analytics.'
       console.error('Failed to load affiliate analytics:', err)

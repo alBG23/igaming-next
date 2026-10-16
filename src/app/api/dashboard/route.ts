@@ -169,7 +169,7 @@ export async function GET(request: Request) {
     const revenue = revenueMetrics.rows[0]
 
     // Format currency from cents to display units
-    function formatCurrency(cents: bigint | number, currency: string = 'EUR'): string {
+    const formatCurrency = (cents: bigint | number, currency: string = 'EUR'): string => {
       const value = Number(cents) / 100
       return new Intl.NumberFormat('en-US', {
         style: 'currency',

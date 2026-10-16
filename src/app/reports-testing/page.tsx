@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DateRangePicker } from '@/components/date-range-picker'
 import { formatCurrency, formatNumber, formatPercentage } from '@/lib/utils'
-import { supabase } from '@/lib/supabase'
 import { DateRange } from 'react-day-picker'
-import { addDays } from 'date-fns'
+import { addDays, format } from 'date-fns'
 import { MultiSelect } from '@/components/ui/multi-select'
 
 interface ReportMetrics {
@@ -44,33 +43,19 @@ export default function ReportsTestingPage() {
   const [affiliates, setAffiliates] = useState<string[]>([])
   const [countries, setCountries] = useState<string[]>([])
 
-  // Fetch available affiliates and countries
+  // Fetch available affiliates and countries via API
   useEffect(() => {
     async function fetchFilterOptions() {
       try {
-        // Get unique s_tag_affiliate values from ad_args_view
-        const { data: affiliatesData, error: affiliatesError } = await supabase
-          .from('ad_args_view')
-          .select('s_tag_affiliate')
-          .not('s_tag_affiliate', 'is', null)
-          .order('s_tag_affiliate')
+        const res = await fetch('/api/reports-testing?limit=200')
+        if (!res.ok) throw new Error(`Reports API returned ${res.status}`)
+        const json = await res.json()
 
-        // Get unique countries from users_view
-        const { data: countriesData, error: countriesError } = await supabase
-          .from('users_view')
-          .select('country')
-          .not('country', 'is', null)
-          .order('country')
-
-        if (affiliatesError) throw affiliatesError
-        if (countriesError) throw countriesError
-
-        // Extract unique values
-        const uniqueAffiliates = Array.from(new Set((affiliatesData || []).map((a: any) => a.s_tag_affiliate))).filter(Boolean) as string[]
-        const uniqueCountries = Array.from(new Set((countriesData || []).map((c: any) => c.country))).filter(Boolean) as string[]
-
-        setAffiliates(uniqueAffiliates)
-        setCountries(uniqueCountries)
+        if (json.success && json.data) {
+          const { affiliateOptions, countryOptions } = json.data
+          setAffiliates(affiliateOptions || [])
+          setCountries(countryOptions || [])
+        }
       } catch (err) {
         console.error('Error fetching filter options:', err)
       }
@@ -86,64 +71,44 @@ export default function ReportsTestingPage() {
         setLoading(true)
         setError(null)
 
-        // First get user_ids from ad_args_view based on affiliate filter
-        let userQuery = supabase
-          .from('ad_args_view')
-          .select('user_id, s_tag_affiliate')
+        const from = filters.dateRange?.from
+        const to = filters.dateRange?.to
+        const startDateStr = from ? format(from, 'yyyy-MM-dd') : format(addDays(new Date(), -7), 'yyyy-MM-dd')
+        const endDateStr = to ? format(to, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
 
-        if (filters.selectedAffiliates.length > 0) {
-          userQuery = userQuery.in('s_tag_affiliate', filters.selectedAffiliates)
-        }
-
-        const { data: userData, error: userError } = await userQuery
-
-        if (userError) throw userError
-
-        // Get user_ids that match our criteria
-        const userIds = userData.map(u => u.user_id)
-
-        // Now fetch payments data for these users
-        let query = supabase
-          .from('payments_view')
-          .select(`
-            *,
-            user:users_view(*)
-          `)
-          .in('user_id', userIds)
-          .gte('created_at', filters.dateRange?.from?.toISOString() || '')
-          .lte('created_at', filters.dateRange?.to?.toISOString() || '')
-
-        if (filters.selectedCountry !== 'all') {
-          query = query.eq('user.country', filters.selectedCountry)
-        }
-
-        const { data, error } = await query
-
-        if (error) throw error
-
-        // Calculate metrics
-        const list = Array.isArray(data) ? data : []
-        const deposits = list.filter((p: any) => p.action === 'deposit')
-        const withdrawals = list.filter((p: any) => p.action === 'withdrawal')
-        const ftds = deposits.filter((p: any) => p.is_first_deposit)
-        const successfulFtds = ftds.filter((p: any) => p.success)
-
-        const totalDeposits = deposits.reduce((sum: number, p: any) => sum + (Number(p.amount_cents) || 0), 0) / 100
-        const totalWithdrawals = withdrawals.reduce((sum: number, p: any) => sum + (Number(p.amount_cents) || 0), 0) / 100
-        const ngr = totalDeposits - totalWithdrawals
-        const ggr = ngr * 0.95 // Assuming 5% commission rate
-
-        setMetrics({
-          totalDeposits,
-          totalWithdrawals,
-          ngr,
-          ggr,
-          ftdCount: ftds.length,
-          ftdAmount: ftds.reduce((sum: number, p: any) => sum + (Number(p.amount_cents) || 0), 0) / 100,
-          ftdSuccessRate: ftds.length ? (successfulFtds.length / ftds.length) * 100 : 0,
-          playerCount: Array.from(new Set(list.map((p: any) => p.user_id))).length,
-          averageDeposit: deposits.length ? totalDeposits / deposits.length : 0,
+        const params = new URLSearchParams({
+          startDate: startDateStr,
+          endDate: endDateStr,
+          limit: '500',
         })
+        if (filters.selectedAffiliates.length > 0) {
+          params.set('affiliate', filters.selectedAffiliates.join(','))
+        }
+        if (filters.selectedCountry !== 'all') {
+          params.set('country', filters.selectedCountry)
+        }
+
+        const res = await fetch(`/api/reports-testing?${params}`)
+        if (!res.ok) throw new Error(`Reports API returned ${res.status}`)
+        const json = await res.json()
+
+        if (json.success && json.data) {
+          const m = json.data.metrics
+          setMetrics({
+            totalDeposits: Number(m.totalDepositsCents) / 100,
+            totalWithdrawals: Number(m.totalWithdrawalsCents) / 100,
+            ngr: (Number(m.totalDepositsCents) - Number(m.totalWithdrawalsCents)) / 100,
+            ggr: ((Number(m.totalDepositsCents) - Number(m.totalWithdrawalsCents)) / 100) * 0.95,
+            ftdCount: m.ftdCount || 0,
+            ftdAmount: Number(m.ftdAmountCents) / 100,
+            ftdSuccessRate: m.ftdSuccessRate || 0,
+            playerCount: m.playerCount || 0,
+            averageDeposit: m.averageDepositCents ? Number(m.averageDepositCents) / 100 : 0,
+          })
+        } else {
+          setError(json.error || 'Failed to load reports data')
+          setMetrics(null)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred')
         console.error('Error fetching metrics:', err)
@@ -267,4 +232,4 @@ export default function ReportsTestingPage() {
       ) : null}
     </div>
   )
-} 
+}

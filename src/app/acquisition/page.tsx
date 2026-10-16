@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, Download, RefreshCw } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 import { formatNumber, formatPercentage } from '@/lib/utils'
+import { addDays, format } from 'date-fns'
 
 interface AcquisitionSource {
   source: string
@@ -37,71 +37,29 @@ export default function AcquisitionPage() {
 
     const endDate = new Date()
     const startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000)
-    const startIso = startDate.toISOString()
-    const dateFrom = startIso.slice(0, 10)
-    const dateTo = endDate.toISOString().slice(0, 10)
+    const startDateStr = format(startDate, 'yyyy-MM-dd')
+    const endDateStr = format(endDate, 'yyyy-MM-dd')
 
     try {
-      const [totalUsersResult, newUsersResult, trafficResult] = await Promise.all([
-        supabase.from('users_view').select('id', { count: 'exact', head: true }),
-        supabase
-          .from('users_view')
-          .select('id', { count: 'exact', head: true })
-          .gte('created_at', startIso)
-          .lte('created_at', endDate.toISOString()),
-        supabase
-          .from('traffic_reports')
-          .select('foreign_partner_id, visits, registrations_count, deposits_count, ftd_count')
-          .gte('date', dateFrom)
-          .lte('date', dateTo),
-      ])
+      const res = await fetch(
+        `/api/acquisition?startDate=${startDateStr}&endDate=${endDateStr}&limit=50`,
+      )
 
-      if (totalUsersResult.error) {
-        throw new Error(`Could not load total users: ${totalUsersResult.error.message}`)
+      if (!res.ok) throw new Error(`Acquisition API returned ${res.status}`)
+      const json = await res.json()
+
+      if (json.success && json.data) {
+        setMetrics({
+          totalUsers: json.data.totalUsers,
+          newUsers: json.data.newUsers,
+          trafficRegistrations: json.data.trafficRegistrations,
+          firstDeposits: json.data.firstDeposits,
+          ftdRate: json.data.ftdRate,
+          sources: json.data.sources,
+        })
+      } else {
+        throw new Error(json.error || 'Failed to load acquisition data')
       }
-      if (newUsersResult.error) {
-        throw new Error(`Could not load new users: ${newUsersResult.error.message}`)
-      }
-      if (trafficResult.error) {
-        throw new Error(`Could not load traffic reports: ${trafficResult.error.message}`)
-      }
-
-      const sourceTotals = new Map<string, AcquisitionSource>()
-      for (const report of trafficResult.data ?? []) {
-        const sourceName = String(report.foreign_partner_id ?? 'Unattributed')
-        const source = sourceTotals.get(sourceName) ?? {
-          source: sourceName,
-          visits: 0,
-          registrations: 0,
-          deposits: 0,
-          firstDeposits: 0,
-        }
-
-        source.visits += Number(report.visits) || 0
-        source.registrations += Number(report.registrations_count) || 0
-        source.deposits += Number(report.deposits_count) || 0
-        source.firstDeposits += Number(report.ftd_count) || 0
-        sourceTotals.set(sourceName, source)
-      }
-
-      const sources = Array.from(sourceTotals.values()).sort((a, b) => b.visits - a.visits)
-      const trafficRegistrations = trafficResult.data?.length
-        ? sources.reduce((total, source) => total + source.registrations, 0)
-        : null
-      const firstDeposits = trafficResult.data?.length
-        ? sources.reduce((total, source) => total + source.firstDeposits, 0)
-        : null
-
-      setMetrics({
-        totalUsers: totalUsersResult.count,
-        newUsers: newUsersResult.count,
-        trafficRegistrations,
-        firstDeposits,
-        ftdRate: firstDeposits !== null && trafficRegistrations !== null && trafficRegistrations > 0
-          ? (firstDeposits / trafficRegistrations) * 100
-          : null,
-        sources,
-      })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to load acquisition analytics.'
       console.error('Failed to load acquisition analytics:', err)
@@ -146,8 +104,8 @@ export default function AcquisitionPage() {
     setNotification(`Exported ${metrics.sources.length} traffic sources.`)
   }
 
-  const metricText = (value: number | null, format: (number: number) => string = formatNumber) =>
-    value === null ? '—' : format(value)
+  const metricText = (value: number | null, formatFn: (number: number) => string = formatNumber) =>
+    value === null ? '—' : formatFn(value)
 
   return (
     <div className="container mx-auto py-6 space-y-6">

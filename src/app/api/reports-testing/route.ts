@@ -119,7 +119,7 @@ export async function GET(request: Request) {
       `), QUERY_TIMEOUT_MS),
     ])
 
-    function formatCurrency(cents: bigint | number, currency: string = 'EUR'): string {
+    const formatCurrency = (cents: bigint | number, currency: string = 'EUR'): string => {
       const value = Number(cents) / 100
       return new Intl.NumberFormat('en-US', {
         style: 'currency',

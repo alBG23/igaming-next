@@ -81,21 +81,26 @@ test.describe('SoftSwiss & Soft2Bet Vendor Integration — Unit & Integration Su
   });
 
   test('Integration E2E: Sidebar vendor selector switches cleanly between SoftSwiss and Soft2Bet on /chat', async ({ page }) => {
-    await page.goto('/chat', { waitUntil: 'domcontentloaded' });
+    test.setTimeout(60000);
+    await page.goto('/chat', { waitUntil: 'load' });
 
     // 1. Default vendor is SoftSwiss (Connected)
     const vendorSelect = page.locator('#vendor-selector-combobox');
-    await expect(vendorSelect).toBeVisible();
+    await expect(vendorSelect).toBeVisible({ timeout: 20000 });
     await expect(vendorSelect).toContainText('SoftSwiss');
     await expect(vendorSelect).toContainText('Connected');
     await expect(page.getByText(/SoftSwiss Knowledge Base/i)).toBeVisible();
     await expect(page.getByRole('button', { name: 'SoftSwiss Payments & FTDs' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'SoftSwiss Replica Schema' })).toBeVisible();
 
-    // 2. Open Vendor Platform selector and verify Soft2Bet is Connected (not Roadmap)
-    await vendorSelect.click();
+    // 2. Open Vendor Platform selector (retrying click if hydration is still completing) and verify Soft2Bet is Connected
     const soft2betOption = page.getByRole('option', { name: /Soft2Bet/i });
-    await expect(soft2betOption).toBeVisible();
+    await expect(async () => {
+      if ((await vendorSelect.getAttribute('data-state')) !== 'open') {
+        await vendorSelect.click();
+      }
+      await expect(soft2betOption).toBeVisible({ timeout: 1500 });
+    }).toPass({ timeout: 15000 });
     await expect(soft2betOption).toContainText('Connected');
     await soft2betOption.click();
 
@@ -111,8 +116,14 @@ test.describe('SoftSwiss & Soft2Bet Vendor Integration — Unit & Integration Su
     await expect(page.getByText(/Trustly \/ Zimpler Instant/i)).toBeVisible();
 
     // 5. Switch back to SoftSwiss and run a SoftSwiss Quick Prompt
-    await vendorSelect.click();
-    await page.getByRole('option', { name: /SoftSwiss/i }).click();
+    const softswissOption = page.getByRole('option', { name: /SoftSwiss/i });
+    await expect(async () => {
+      if ((await vendorSelect.getAttribute('data-state')) !== 'open') {
+        await vendorSelect.click();
+      }
+      await expect(softswissOption).toBeVisible({ timeout: 1500 });
+    }).toPass({ timeout: 15000 });
+    await softswissOption.click();
     await expect(vendorSelect).toContainText('SoftSwiss');
     await expect(page.getByText(/SoftSwiss Knowledge Base/i)).toBeVisible();
 
