@@ -122,7 +122,10 @@ export function classifyHealRisk(
  * Mock/Sample realistic financial and platform ledger datasets
  * representing comparison between Local Prebuilt vs Source of Truth.
  */
-function generateComparisonDataset(daysBack: number = 7): Array<{
+function generateComparisonDataset(
+  daysBack: number = 7,
+  vendorId: string = 'softswiss'
+): Array<{
   metric: MetricType;
   date: string;
   currency: string;
@@ -133,6 +136,8 @@ function generateComparisonDataset(daysBack: number = 7): Array<{
 }> {
   const dataset = [];
   const now = new Date();
+  const replicaSoT: SourceOfTruthType =
+    vendorId.toLowerCase() === 'soft2bet' ? 'soft2bet_replica' : 'softswiss_replica';
 
   for (let i = 0; i < daysBack; i++) {
     const d = new Date(now);
@@ -151,7 +156,7 @@ function generateComparisonDataset(daysBack: number = 7): Array<{
       metric: 'ggr' as MetricType,
       date: dateStr,
       currency: 'EUR',
-      sourceOfTruth: 'softswiss_replica' as SourceOfTruthType,
+      sourceOfTruth: replicaSoT,
       sourceValue: baseGGR,
       prebuiltValue: baseGGR,
       logicVersion: CURRENT_HEAD_LOGIC_VERSION,
@@ -174,7 +179,7 @@ function generateComparisonDataset(daysBack: number = 7): Array<{
       metric: 'ngr' as MetricType,
       date: dateStr,
       currency: 'EUR',
-      sourceOfTruth: 'softswiss_replica' as SourceOfTruthType,
+      sourceOfTruth: replicaSoT,
       sourceValue: expectedNGR,
       prebuiltValue: prebuiltNGR,
       logicVersion: logicVer,
@@ -192,7 +197,7 @@ function generateComparisonDataset(daysBack: number = 7): Array<{
       metric: 'total_deposits' as MetricType,
       date: dateStr,
       currency: 'EUR',
-      sourceOfTruth: 'softswiss_replica' as SourceOfTruthType,
+      sourceOfTruth: replicaSoT,
       sourceValue: baseDeposits,
       prebuiltValue: isToday ? baseDeposits - 1200 : prebuiltDeposits,
       logicVersion: CURRENT_HEAD_LOGIC_VERSION,
@@ -219,9 +224,10 @@ function generateComparisonDataset(daysBack: number = 7): Array<{
  */
 export async function runReconciliation(
   windowDays: number = 7,
-  config: AccuracySystemConfig = DEFAULT_ACCURACY_CONFIG
+  config: AccuracySystemConfig = DEFAULT_ACCURACY_CONFIG,
+  vendorId: string = 'softswiss'
 ): Promise<ReconciliationRunSummary> {
-  const rawRows = generateComparisonDataset(windowDays);
+  const rawRows = generateComparisonDataset(windowDays, vendorId);
   const now = new Date();
   const runId = `rec_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   

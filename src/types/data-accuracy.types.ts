@@ -1,4 +1,4 @@
-export type SourceOfTruthType = 'softswiss_replica' | 'affilka' | 'back_office' | 'stripe_payments';
+export type SourceOfTruthType = 'softswiss_replica' | 'soft2bet_replica' | 'affilka' | 'back_office' | 'stripe_payments';
 
 export type MetricType = 
   | 'ngr' 

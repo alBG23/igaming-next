@@ -31,6 +31,7 @@ export default function Integrations() {
   const [affiliatePrograms, setAffiliatePrograms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showSoftswissForm, setShowSoftswissForm] = useState(true);
+  const [selectedPlatform, setSelectedPlatform] = useState('softswiss');
   const [softswissCredentials, setSoftswissCredentials] = useState({
     host: '',
     port: '',
@@ -59,11 +60,12 @@ export default function Integrations() {
   const handleSoftswissSubmit = (e) => {
     e.preventDefault();
     
-    localStorage.setItem('softswissCredentials', JSON.stringify(softswissCredentials));
+    const storageKey = selectedPlatform === 'soft2bet' ? 'soft2betCredentials' : 'softswissCredentials';
+    localStorage.setItem(storageKey, JSON.stringify(softswissCredentials));
     
     const newIntegration = {
-      id: 'sw_' + Date.now(),
-      platform_name: 'softswiss',
+      id: (selectedPlatform === 'soft2bet' ? 's2b_' : 'sw_') + Date.now(),
+      platform_name: selectedPlatform,
       brand: 'Your Casino',
       sync_status: 'active',
       last_sync: new Date().toISOString(),
@@ -114,20 +116,33 @@ export default function Integrations() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ServerIcon className="h-5 w-5 text-indigo-600" />
-                Connect to SoftSwiss Database Replica
+                Connect to {selectedPlatform === 'soft2bet' ? 'Soft2Bet' : 'SoftSwiss'} Database Replica
               </CardTitle>
               <CardDescription>
-                Enter your SoftSwiss read-only replica database credentials
+                Enter your {selectedPlatform === 'soft2bet' ? 'Soft2Bet' : 'SoftSwiss'} read-only replica database credentials
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSoftswissSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="platform">Vendor Platform</Label>
+                    <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+                      <SelectTrigger id="platform">
+                        <SelectValue placeholder="Select Platform" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="softswiss">SoftSwiss (Casino Platform & Aggregator)</SelectItem>
+                        <SelectItem value="soft2bet">Soft2Bet (Multi-Brand PAM & MEGA Engine)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="host">Host</Label>
                     <Input 
                       id="host" 
-                      placeholder="e.g. replica.softswiss.com" 
+                      placeholder={selectedPlatform === 'soft2bet' ? "e.g. replica.soft2bet.com" : "e.g. replica.softswiss.com"} 
                       value={softswissCredentials.host}
                       onChange={(e) => setSoftswissCredentials({...softswissCredentials, host: e.target.value})}
                       required
@@ -294,7 +309,7 @@ export default function Integrations() {
                 <PlusCircle className="h-10 w-10 text-gray-300 mb-4" />
                 <p className="text-gray-500 font-medium">Connect New Platform</p>
                 <p className="text-gray-400 text-sm text-center mt-1 max-w-xs">
-                  Add Softswiss, Delasport, BetConstruct, or other gaming platforms
+                  Add SoftSwiss, Soft2Bet, Delasport, BetConstruct, or other gaming platforms
                 </p>
                 <Button className="mt-4" variant="outline">
                   Add Integration

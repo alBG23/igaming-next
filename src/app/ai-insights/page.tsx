@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Brain, RefreshCw, Key, XCircle, Loader2, AlertTriangle, CheckCircle, Lock, FileText, Zap, BarChart3, Users, TrendingUp, SendIcon, Book, Settings, Upload } from 'lucide-react';
 import OpenAIConnectionCheck from '@/components/ai/OpenAIConnectionCheck';
 import OpenAITraining from '@/components/ai/OpenAITraining';
+import { useVendor } from '@/lib/vendor-context';
 
 // Types
 type Message = {
@@ -48,6 +49,7 @@ const mockApi = {
 };
 
 export default function AIInsights() {
+  const { currentVendor } = useVendor();
   const [activeTab, setActiveTab] = useState<string>('question');
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -125,14 +127,16 @@ export default function AIInsights() {
     setChatHistory(prev => [...prev, newMessage]);
     
     try {
-      let response = `SoftSwiss Analytics Copilot: Found active verified player accounts and ledger records for "${question}". All metrics tie directly to SoftSwiss PostgreSQL replica views.`;
+      const vName = currentVendor.name;
+      const vUrl = currentVendor.url;
+      let response = `${vName} Analytics Copilot: Found active verified player accounts and ledger records for "${question}". All metrics tie directly to ${vName} PostgreSQL replica views.`;
       const q = question.toLowerCase();
       if (q.includes('ggr') || q.includes('revenue')) {
-        response = "Based on SoftSwiss payments_view and casino_games_view replica data, gross gaming revenue and deposit trends show positive momentum across EUR, USD, GBP, and crypto payment rails.";
+        response = `Based on ${vName} payments_view and casino_games_view replica data, gross gaming revenue and deposit trends show positive momentum across EUR, USD, GBP, and crypto payment rails.`;
       } else if (q.includes('player') || q.includes('user')) {
-        response = "SoftSwiss users_view and accounts_view currently track verified accounts across VIP, Gold, Silver, and Bronze tiers with active balance tracking.";
-      } else if (q.includes('vendor') || q.includes('softswiss')) {
-        response = "The active vendor is SoftSwiss (https://www.softswiss.com/), connected via PostgreSQL replica. All game sessions, bonus issues, and payment transactions are sourced directly from SoftSwiss schemas.";
+        response = `${vName} users_view and accounts_view currently track verified accounts across VIP, Gold, Silver, and Bronze tiers with active balance tracking.`;
+      } else if (q.includes('vendor') || q.includes('softswiss') || q.includes('soft2bet')) {
+        response = `The active vendor is ${vName} (${vUrl}), connected via PostgreSQL replica. All game sessions, bonus issues, and payment transactions are sourced directly from ${vName} schemas.`;
       }
       
       setChatHistory(prev => [...prev, { type: 'assistant', content: response }]);

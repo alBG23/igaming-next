@@ -113,7 +113,22 @@ export function Sidebar() {
               aria-label="Select iGaming Vendor Platform"
               className="h-8 text-xs bg-background border-border/80"
             >
-              <SelectValue placeholder="Select Vendor Platform" />
+              <SelectValue placeholder="Select Vendor Platform">
+                <div className="flex items-center justify-between w-full gap-2">
+                  <span className="font-medium text-xs">{currentVendor.name}</span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[9px] py-0 px-1 font-semibold",
+                      currentVendor.status === "active"
+                        ? "border-emerald-500/50 text-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {currentVendor.badge}
+                  </Badge>
+                </div>
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {availableVendors.map((vendor) => (
@@ -153,7 +168,7 @@ export function Sidebar() {
               variant="outline"
               className="text-[10px] font-bold px-1.5 py-0.5 border-emerald-500/60 text-emerald-600 hover:bg-emerald-50/50 cursor-pointer"
             >
-              SS
+              {currentVendor.shortCode || "SS"}
             </Badge>
           </a>
         </div>

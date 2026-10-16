@@ -30,9 +30,11 @@ import {
   KNOWLEDGE_DOCUMENTS, 
   KnowledgeDocument, 
   searchKnowledgeBase, 
+  getKnowledgeDocumentsForVendor,
   executeHermesLangChainQuery, 
   HermesAnalysisResult 
 } from '@/lib/hermes/knowledge-base';
+import { useVendor } from '@/lib/vendor-context';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -54,30 +56,40 @@ type Message = {
   };
 };
 
-const QUICK_PROMPTS = [
-  { label: 'Top 3 Affiliates by NGR', query: 'Show me top 3 affiliates by NGR for last 3 months' },
-  { label: 'GGR Trend', query: 'What is the GGR trend for last month?' },
-  { label: 'SoftSwiss Payments & FTDs', query: 'How many FTDs and payments did we have?' },
-  { label: 'Crypto Divisors (1e8 / 1e9)', query: 'Explain crypto currency subunit divisors' },
-  { label: 'SPLIT Payment Basis', query: 'What is SoftSwiss SPLIT payment day basis?' },
-  { label: 'SoftSwiss Replica Schema', query: 'Show SoftSwiss datalake replica schema architecture' },
-];
+function getQuickPromptsForVendor(vendorName: string) {
+  const isSoft2Bet = vendorName.toLowerCase() === 'soft2bet';
+  return [
+    { label: 'Top 3 Affiliates by NGR', query: 'Show me top 3 affiliates by NGR for last 3 months' },
+    { label: 'GGR Trend', query: 'What is the GGR trend for last month?' },
+    { label: `${vendorName} Payments & FTDs`, query: `How many ${vendorName} FTDs and payments did we have?` },
+    { label: 'Crypto Divisors (1e8 / 1e9)', query: 'Explain crypto currency subunit divisors' },
+    { label: 'SPLIT Payment Basis', query: `What is ${vendorName} SPLIT payment day basis?` },
+    {
+      label: isSoft2Bet ? 'Soft2Bet MEGA & PAM Schema' : 'SoftSwiss Replica Schema',
+      query: isSoft2Bet
+        ? 'Show Soft2Bet multi-brand MEGA gamification and PAM schema architecture'
+        : 'Show SoftSwiss datalake replica schema architecture',
+    },
+  ];
+}
 
-const INITIAL_WELCOME_MESSAGE: Message = {
-  role: 'assistant',
-  content: 'Welcome to the Analytics Chat! I can help you analyze your igaming data.',
-  reasoningSteps: [
-    'Plan: Initialized Hermes AI session with LangChain knowledge retrieval pipeline.',
-    'Knowledge: Loaded SoftSwiss datalake replica schema (users_view, payments_view, casino_games_view).',
-    'Verification: Active tenant isolation and currency subunit rules (Fiat /100, BTC /1e8, ETH /1e9).',
-    'Ready: Awaiting natural language query or knowledge base prompt.',
-  ],
-  matchedKnowledge: KNOWLEDGE_DOCUMENTS.slice(0, 2),
-  visualization: {
-    type: 'text',
-    title: 'Hermes AI Knowledge & Analytical Capabilities',
-    description: 'Multi-turn analytical chat powered by LangChain and SoftSwiss real replica data',
-    data: `I can help you analyze:
+function buildWelcomeMessage(vendorId: string, vendorName: string): Message {
+  const vendorDocs = getKnowledgeDocumentsForVendor(vendorId);
+  return {
+    role: 'assistant',
+    content: `Welcome to the Analytics Chat! I can help you analyze your ${vendorName} igaming data.`,
+    reasoningSteps: [
+      `Plan: Initialized Hermes AI session with LangChain knowledge retrieval pipeline for ${vendorName}.`,
+      `Knowledge: Loaded ${vendorName} datalake replica schema (users_view, payments_view, casino_games_view).`,
+      'Verification: Active tenant isolation and currency subunit rules (Fiat /100, BTC /1e8, ETH /1e9).',
+      'Ready: Awaiting natural language query or knowledge base prompt.',
+    ],
+    matchedKnowledge: vendorDocs.slice(0, 2),
+    visualization: {
+      type: 'text',
+      title: `Hermes AI Knowledge & Analytical Capabilities (${vendorName})`,
+      description: `Multi-turn analytical chat powered by LangChain and ${vendorName} real replica data`,
+      data: `I can help you analyze (${vendorName} Platform):
 - NGR (Net Gaming Revenue)
 - GGR (Gross Gaming Revenue)
 - FTDs (First Time Depositors)
@@ -90,8 +102,9 @@ Try queries like:
 - What's the GGR trend for last month?
 - How many FTDs did we have last week?
 - Show me deposits vs cashouts for last month`
-  }
-};
+    }
+  };
+}
 
 const ChartCustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload || !payload.length) return null;
@@ -117,7 +130,11 @@ const ChartCustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([INITIAL_WELCOME_MESSAGE]);
+  const { currentVendor } = useVendor();
+  const quickPrompts = useMemo(() => getQuickPromptsForVendor(currentVendor.name), [currentVendor.name]);
+  const [messages, setMessages] = useState<Message[]>(() => [
+    buildWelcomeMessage(currentVendor.id, currentVendor.name),
+  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [feedbackState, setFeedbackState] = useState<Record<number, string>>({});
@@ -125,6 +142,15 @@ export default function ChatPage() {
   const [kbSearchQuery, setKbSearchQuery] = useState('');
   const [kbCategoryFilter, setKbCategoryFilter] = useState<string>('all');
   const [expandedDocId, setExpandedDocId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 1 && prev[0].role === 'assistant') {
+        return [buildWelcomeMessage(currentVendor.id, currentVendor.name)];
+      }
+      return prev;
+    });
+  }, [currentVendor.id, currentVendor.name]);
 
   const handleFeedback = (index: number, type: 'thumbs_up' | 'thumbs_down') => {
     setFeedbackState(prev => ({ ...prev, [index]: type }));
@@ -142,10 +168,14 @@ export default function ChatPage() {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setActiveTab('visualization');
 
     try {
       // Execute Hermes LangChain RAG pipeline
-      const hermesResult: HermesAnalysisResult = await executeHermesLangChainQuery(textToSubmit);
+      const hermesResult: HermesAnalysisResult = await executeHermesLangChainQuery(
+        textToSubmit,
+        currentVendor.id
+      );
       
       const assistantMessage: Message = {
         role: 'assistant',
@@ -173,18 +203,18 @@ export default function ChatPage() {
   };
 
   const filteredKnowledgeDocs = useMemo(() => {
-    let docs = KNOWLEDGE_DOCUMENTS;
+    let docs = getKnowledgeDocumentsForVendor(currentVendor.id);
     if (kbCategoryFilter !== 'all') {
       docs = docs.filter(d => d.category === kbCategoryFilter);
     }
     if (kbSearchQuery.trim()) {
-      docs = searchKnowledgeBase(kbSearchQuery, 10);
+      docs = searchKnowledgeBase(kbSearchQuery, 10, currentVendor.id);
       if (kbCategoryFilter !== 'all') {
         docs = docs.filter(d => d.category === kbCategoryFilter);
       }
     }
     return docs;
-  }, [kbSearchQuery, kbCategoryFilter]);
+  }, [kbSearchQuery, kbCategoryFilter, currentVendor.id]);
 
   const latestAssistantMessage = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -204,7 +234,7 @@ export default function ChatPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Analytics Chat</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Hermes 3 AI Engine • LangChain RAG Active • SoftSwiss Knowledge Base
+              Hermes 3 AI Engine • LangChain RAG Active • {currentVendor.name} Knowledge Base
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -246,7 +276,7 @@ export default function ChatPage() {
               <span className="text-[10px] opacity-75">Click to run immediately</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {QUICK_PROMPTS.map((prompt, idx) => (
+              {quickPrompts.map((prompt, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -377,7 +407,7 @@ export default function ChatPage() {
               <Card className="p-4 bg-muted/30 border-dashed animate-pulse">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Sparkles className="h-4 w-4 text-indigo-500 animate-spin" />
-                  <span>Hermes is retrieving knowledge and querying SoftSwiss replica...</span>
+                  <span>Hermes is retrieving knowledge and querying {currentVendor.name} replica...</span>
                 </div>
               </Card>
             )}
@@ -574,7 +604,7 @@ export default function ChatPage() {
 
               <div className="p-3 bg-muted/40 rounded-lg border text-xs space-y-1">
                 <p className="font-semibold text-[11px] text-foreground">Verified Execution Guards:</p>
-                <p className="text-[11px] text-muted-foreground">✔ SoftSwiss replica read-only isolation</p>
+                <p className="text-[11px] text-muted-foreground">✔ {currentVendor.name} replica read-only isolation</p>
                 <p className="text-[11px] text-muted-foreground">✔ Split payment date rules (deposits: created_at, cashouts: finished_at)</p>
                 <p className="text-[11px] text-muted-foreground">✔ Multi-currency subunit divisors (Fiat: 100, BTC: 1e8, ETH: 1e9)</p>
               </div>
@@ -669,7 +699,10 @@ export default function ChatPage() {
                           variant="outline"
                           size="sm"
                           className="h-6 text-[11px] px-2.5 gap-1 bg-background"
-                          onClick={() => handleSendQuery(`Explain ${doc.title} in detail`)}
+                          onClick={() => {
+                            setActiveTab('visualization');
+                            handleSendQuery(`Explain ${doc.title} in detail`);
+                          }}
                         >
                           Ask Hermes
                           <ArrowRight className="h-3 w-3" />
